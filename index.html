@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071426" />
+    <title>Orbit Chase</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="game-column">
+        <div class="game-toolbar">
+          <button id="debug-toggle" type="button" aria-expanded="false">Show debug</button>
+        </div>
+        <div id="game" aria-label="Orbit Chase game"></div>
+      </section>
+      <aside id="debug-panel" aria-label="Game debug information" hidden>
+        <div class="debug-heading">
+          <h2>Live debug</h2>
+          <span>Updates every 120 ms</span>
+        </div>
+        <pre id="debug-content">Waiting for game state…</pre>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
