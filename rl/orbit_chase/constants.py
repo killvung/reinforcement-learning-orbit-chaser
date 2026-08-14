@@ -88,3 +88,15 @@ ACTOR_SPAWN_CLEARANCE: Final = 32.0
 ORB_TO_PELLET_CLEARANCE: Final = 34.0
 OBSERVATION_SIZE: Final = 130
 ACTION_COUNT: Final = len(Direction)
+
+
+# ---------------------------------------------------------------------------
+# Player learning rewards
+# ---------------------------------------------------------------------------
+
+REWARD_PER_DECISION: Final = -0.01
+REWARD_PER_PELLET: Final = 3.0
+REWARD_PER_ORB: Final = 10.0
+REWARD_CLEAR: Final = 100.0
+REWARD_CAPTURE: Final = -100.0
+REWARD_TIMEOUT: Final = -30.0
