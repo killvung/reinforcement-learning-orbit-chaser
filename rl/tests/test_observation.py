@@ -3,7 +3,7 @@ from types import SimpleNamespace
 import numpy as np
 
 from orbit_chase.arena import Arena, Collectible
-from orbit_chase.constants import OBSERVATION_SIZE, PELLET_COUNT, SURGE_ORB_COUNT
+from orbit_chase.rules import OBSERVATION_SIZE, PELLET_COUNT, SURGE_ORB_COUNT
 from orbit_chase.observation import (
     BAR_FEATURE_COUNT,
     COLLECTIBLE_FEATURE_WIDTH,

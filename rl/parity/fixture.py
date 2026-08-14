@@ -6,7 +6,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from orbit_chase.arena import Arena, Collectible
-from orbit_chase.constants import Direction
+from orbit_chase.rules import Direction
 from orbit_chase.simulation import GameSimulation
 
 

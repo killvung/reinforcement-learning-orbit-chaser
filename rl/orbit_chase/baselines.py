@@ -8,7 +8,7 @@ from typing import Protocol, Sequence
 
 import numpy as np
 
-from .constants import (
+from .rules import (
     ARENA_RADIUS,
     PLAYER_DECISION_SECONDS,
     PLAYER_SPEED,

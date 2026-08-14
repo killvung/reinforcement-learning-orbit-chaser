@@ -6,7 +6,7 @@ from orbit_chase.baselines import (
     RandomValidPolicy,
     evaluate_policy,
 )
-from orbit_chase.constants import ACTION_COUNT, OBSERVATION_SIZE
+from orbit_chase.rules import ACTION_COUNT, OBSERVATION_SIZE
 from orbit_chase.observation import COLLECTIBLE_FEATURE_WIDTH, PELLET_FEATURE_OFFSET
 
 

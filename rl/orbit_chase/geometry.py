@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 import math
-from .constants import ARENA_CENTER, ARENA_RADIUS, BAR_WIDTH, CORE_RADIUS
+from .rules import ARENA_CENTER, ARENA_RADIUS, BAR_WIDTH, CORE_RADIUS
 
 
 def distance(a: tuple[float, float], b: tuple[float, float]) -> float:

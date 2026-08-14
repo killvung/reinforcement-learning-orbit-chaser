@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from .constants import (
+from .rules import (
     ARENA_CENTER,
     ARENA_RADIUS,
     ACTION_COUNT,

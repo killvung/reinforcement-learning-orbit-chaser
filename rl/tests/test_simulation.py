@@ -1,7 +1,7 @@
 import math
 
 from orbit_chase.arena import Arena
-from orbit_chase.constants import (
+from orbit_chase.rules import (
     ARENA_CENTER,
     ARENA_RADIUS,
     CORE_RADIUS,

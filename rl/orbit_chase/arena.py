@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from .constants import (
+from .rules import (
     ARENA_CENTER,
     ACTOR_SPAWN_CLEARANCE,
     BAR_LENGTH_VARIATION,

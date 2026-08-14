@@ -8,7 +8,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 
-from .constants import (
+from .rules import (
     ACTION_COUNT,
     OBSERVATION_SIZE,
     PLAYER_DECISION_SECONDS,

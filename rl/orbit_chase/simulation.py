@@ -6,7 +6,7 @@ import math
 from dataclasses import dataclass
 
 from .arena import Arena, make_arena
-from .constants import (
+from .rules import (
     DIRECTION_UNITS,
     DIRECTION_VECTORS,
     ENEMY_LOOKAHEAD_PIXELS,

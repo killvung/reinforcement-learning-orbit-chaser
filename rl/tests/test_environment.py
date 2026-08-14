@@ -4,7 +4,7 @@ import math
 
 import numpy as np
 
-from orbit_chase.constants import PHYSICS_DT_SECONDS
+from orbit_chase.rules import PHYSICS_DT_SECONDS
 from orbit_chase_player_env import OrbitChasePlayerEnv
 from orbit_chase.simulation import StepEvents
 

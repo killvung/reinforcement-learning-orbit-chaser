@@ -6,7 +6,7 @@ import json
 import sys
 from pathlib import Path
 
-from orbit_chase.constants import BAR_WIDTH, Direction, ENEMY_DECISION_SECONDS
+from orbit_chase.rules import BAR_WIDTH, Direction, ENEMY_DECISION_SECONDS
 from orbit_chase.simulation import GameSimulation, StepEvents
 from parity.fixture import apply_setup, fixture_actions
 
