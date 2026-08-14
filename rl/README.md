@@ -1,107 +1,59 @@
 # Reinforcement Learning
 
-This directory will contain the headless training environment, agents,
-evaluators, checkpoints, and experiment outputs for the Orbit Chase **player
-agent**. The red enemy remains the deterministic greedy controller from the
-game.
-
-## Training objective
-
-Train the yellow player to clear all 32 pellets within 60 seconds while
-avoiding capture. The primary held-out metric is **arena clear rate**. A policy
-that only survives until timeout is not considered successful.
+This directory contains the headless implementation for the yellow **player**
+agent. The red enemy remains the fixed deterministic greedy controller in the
+browser simulation.
 
 ## Environment contract
 
-The Python environment must reproduce `src/game/simulation.ts`:
+The Python environment ports `src/game/simulation.ts` exactly:
 
-- Circular arena, central core, and two seeded rotating obstacle bars.
-- Player start, enemy start, 32 seeded pellets, and three seeded power orbs.
-- Player speed 175 px/s; enemy speed 110 px/s.
-- A four-second player surge after an orb: player 1.32x speed, enemy 0.78x.
-- Player collection radii, collision radii, 60-second timer, and swept-path
-  collision handling.
-- Enemy decisions every 0.28 seconds using the fixed greedy pursuit rule.
-- Deterministic reset for a supplied seed.
+- fixed 10 ms physics ticks and seeded arena/pickup generation;
+- a 100 ms player decision interval with eight movement actions;
+- static circular boundary, core, and two generated bars;
+- 32 pellet slots, three Surge Orb slots, capture, clear, and timeout rules;
+- player Surge speed multiplier and the greedy enemy's 0.28 s decision clock.
 
-The player takes one of eight movement directions per decision. The
-environment should mask directions whose short swept path immediately hits a
-wall; collision handling remains authoritative during movement.
+Its 130-element observation is:
 
-## Observation
-
-Use a normalized fixed-size numerical observation including:
-
-- Player position and velocity.
-- Enemy position and current heading.
-- Surge state and remaining round time.
-- Both obstacle-bar endpoints.
-- Every pellet and orb position plus active flag.
-
-The encoder and its feature order are versioned. The browser export must use
-the identical encoder before an agent is deployed.
-
-## Reward
-
-Initial reward schedule:
-
-| Event | Reward |
+| Features | Count |
 | --- | ---: |
-| Clear all pellets | +100 |
-| Pellet collected | +3 |
-| Power orb collected | +10 |
-| Captured | -100 |
-| Timeout | -30 |
-| Per decision | -0.01 |
-| Progress toward nearest active pellet | Small bounded shaping term |
+| Player position, velocity, Surge fraction | 5 |
+| Enemy position, heading one-hot, decision-clock fraction | 11 |
+| Two bar endpoints | 8 |
+| 32 pellet positions and active flags | 96 |
+| 3 orb positions and active flags | 9 |
+| Time fraction | 1 |
+| **Total** | **130** |
 
-Do not add a positive timeout reward. Review reward breakdowns alongside
-episode outcomes to make sure the agent is learning to clear, not hide.
+Coordinates are arena-centered and divided by the arena radius. The matching
+eight-element action mask uses swept collision checks over the next decision
+interval. Collision handling remains authoritative even if an invalid action
+is selected.
 
-## Algorithms
+## First algorithm: True Online Sarsa(lambda)
 
-### 1. True Online Sarsa(lambda): first learning baseline
+Sarsa(lambda) is the first learning baseline, not PPO. It will use linear
+action values with sparse tile-coded features, an epsilon-greedy policy over
+valid actions, and true-online eligibility traces. This makes reward,
+feature, action-mask, and trace behavior inspectable before using a neural
+network.
 
-Use True Online Sarsa(lambda) with **linear action-value approximation and
-tile coding**. A tabular lookup is not viable because positions, obstacle
-angles, and generated collectibles produce a continuous, procedural state
-space.
-
-This baseline should be quick to train and inspect. Expected behavior is basic
-pellet progress and local evasive habits. It may struggle with obstacle detours
-and long-horizon strategy, so it is a validation baseline rather than the
-expected final controller.
-
-### 2. Masked discrete-action PPO: candidate final agent
-
-Use an actor--critic with eight masked discrete actions, parallel headless
-environments, and PyTorch. PPO should be trained only after Sarsa(lambda) has
-validated the environment and reward. It must outperform Sarsa(lambda) on the
-same held-out seeds before selection.
-
-## Evaluation protocol
-
-- Reserve a fixed held-out seed range; never train on it.
-- Run random, hand-authored, Sarsa(lambda), and PPO agents on exactly the same
-  held-out seeds.
-- Report clear, capture, and timeout rates; mean pellets collected; mean return;
-  and median clear time for successful episodes.
-- Save a CSV row per checkpoint and select by clear rate, using capture rate as
-  a tie-breaker.
-- Add fixed-seed Python/browser parity tests before exporting a policy.
+Each run records clear, capture, and timeout rates; pellets collected; return;
+and time to clear. Training and held-out seed ranges must remain disjoint.
 
 ## Planned layout
 
 ```text
 rl/
-  orbit_chase_player_env.py  # Gymnasium-style player environment
-  tile_coder.py              # Sparse tile features for Sarsa(lambda)
-  train_sarsa.py             # True Online Sarsa(lambda) baseline
-  train_ppo.py               # PPO player training
-  evaluate.py                # Common held-out evaluator
-  export_player.py           # Browser actor export
-  tests/                     # Environment and parity tests
-  models/                    # Checkpoints (ignored by Git)
-  results/                   # CSV/JSON/log artifacts (ignored by Git)
+  orbit_chase_player_env.py  # Headless environment
+  tile_coder.py              # Sparse tile features
+  train_sarsa.py             # True Online Sarsa(lambda)
+  evaluate.py                # Shared held-out evaluation
+  tests/                     # Python environment/parity tests
+  models/                    # Ignored checkpoints
+  results/                   # Ignored experiment data
 ```
 
+PPO is explicitly deferred until this environment, heuristic baseline, and
+Sarsa(lambda) evaluation are reproducible.

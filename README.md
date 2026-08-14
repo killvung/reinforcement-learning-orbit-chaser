@@ -1,98 +1,67 @@
 # Orbit Chase
 
-Orbit Chase is a Phaser 3 top-down pursuit game. The yellow player starts in a
-circular arena containing 32 pellets and three power orbs. The player wins by
-collecting every pellet before the 60-second timer expires. The red enemy wins
-by touching the player. Two rotating obstacle bars and the arena boundary block
-both actors.
+Orbit Chase is a Phaser 3 top-down pursuit game. The yellow player wins by
+collecting all 32 pellets in 60 seconds; the red enemy wins by touching the
+player. A seeded circular arena contains a central core and two **static**
+procedural obstacle bars. Three Surge Orbs give the player four seconds of
+speed advantage.
 
-The player moves at 175 px/s (1.32x while surge is active); the enemy moves at
-110 px/s (0.78x while surge is active). Power orbs grant the player four
-seconds of surge. The built-in enemy is a deterministic greedy pursuer: every
-0.28 seconds it chooses the collision-safe direction that most reduces its
-straight-line distance to the player.
+The player moves at 175 px/s (1.32x during Surge). The fixed red enemy moves
+at 110 px/s (0.78x during player Surge) and chooses a collision-safe greedy
+pursuit direction every 0.28 seconds.
 
-## Train the player agent
+## Player-agent objective
 
-The goal is a single player PPO agent that **clears pellets against the fixed
-greedy enemy**. With the enemy policy fixed, the game is a standard
-single-agent MDP rather than a multi-agent learning problem.
+The project trains a single RL **player** agent against that fixed greedy
+enemy. This is a single-agent MDP: the enemy is deterministic game dynamics,
+not a second learning agent.
 
-### MDP
+The primary held-out metric is arena clear rate. A policy that survives until
+timeout without clearing pellets is not successful.
 
-| Component | Definition |
-| --- | --- |
-| Agent | Yellow player |
-| Actions | Eight movement directions; held for a short fixed decision interval |
-| Environment | Procedural arena seed, pellets, orbs, surge state, timer, and deterministic greedy red enemy |
-| Observation | Normalized player/enemy positions and velocities, surge, enemy heading, bar endpoints, pellet/orb locations and active flags, and remaining time |
-| Terminal states | Player clears all pellets (win), enemy captures player (loss), or 60 seconds elapse (loss) |
-| Primary metric | Held-out arena clear rate |
+## Deterministic simulation contract
 
-### Reward design
+`src/game/simulation.ts` owns gameplay rules; Phaser only presents them. It
+uses a fixed 10 ms physics tick, so a seed and action sequence produce the
+same episode regardless of browser render rate.
 
-The reward must make clearing the arena more valuable than merely surviving:
+The headless training implementation must match this contract:
 
-| Event | Initial reward |
-| --- | ---: |
-| Clear all pellets | +100 |
-| Pellet collected | +3 |
-| Power orb collected | +10 |
-| Capture | -100 |
-| Timeout | -30 |
-| Each decision | -0.01 |
-| Movement toward nearest active pellet | Small, bounded shaping reward |
+- `reset(seed)` regenerates arena geometry and all collectible slots.
+- `stepFixed(playerInput)` advances exactly one physics tick.
+- `step(elapsed, playerInput)` is the browser adapter and preserves leftover
+  time between render frames.
+- `observe()` returns a versioned 130-feature player observation and an
+  eight-action collision mask for the next 100 ms decision interval.
 
-Capture avoidance is represented by the terminal penalty. We will not give a
-positive timeout reward: otherwise the player learns to hide rather than win.
-The shaping term is only an aid to exploration and must remain much smaller
-than the win/loss rewards.
+Observation features are normalized arena-relative actor state, enemy heading
+and decision-clock fraction, both bar endpoints, 32 pellet slots, three orb
+slots, and remaining time. Collected slots keep their position and switch only
+their active flag, keeping the feature order fixed.
 
-## Technical plan
+## RL progression
 
-### Stack
+1. Implement and verify the headless Python environment against fixed seeds.
+2. Benchmark random and hand-authored pellet-seeking players.
+3. Train **True Online Sarsa(lambda)** with linear tile-coded features. This is
+   the first learning agent because its values and eligibility traces are easy
+   to inspect scientifically.
+4. Evaluate Sarsa(lambda) on held-out seeds before considering PPO.
+5. Add masked PPO only if it beats Sarsa(lambda) and the pellet heuristic on
+   held-out clear rate and pellets collected.
 
-- **Game:** TypeScript, Phaser 3, Vite (existing browser implementation).
-- **Training:** Python, Gymnasium-style environment, NumPy, and PyTorch.
-- **Algorithm:** masked discrete-action PPO actor--critic. PyTorch keeps the
-  model and browser-export format under project control without adding a large
-  RL framework dependency.
-- **Evaluation and artifacts:** JSON/CSV metrics, PyTorch checkpoints, and a
-  dependency-free JSON actor export for browser inference.
+The initial reward schedule is: clear `+100`, pellet `+3`, Surge Orb `+10`,
+capture `-100`, timeout `-30`, and a small per-decision cost/progress shaping
+term. Shaping remains small enough that clearing dominates surviving.
 
-### Stages
+## Development
 
-1. **Rebuild a faithful headless environment.** Port the current game rules to
-   Python with seeded procedural arenas, swept-path collision checks, player
-   collection/surge, and exactly the same greedy enemy decision rule. Add unit
-   tests for geometry, collection, terminal conditions, and deterministic
-   resets.
-2. **Establish non-learning baselines.** Measure a random player and a simple
-   hand-authored pellet-seeking player over held-out seeds. These are the floor
-   for learning agents and validate the evaluation harness.
-3. **Train True Online Sarsa(lambda).** Use linear action-value approximation
-   with tile coding as the first learning baseline. It should learn local
-   pellet-seeking, immediate danger avoidance, and orb collection; it is
-   unlikely to be the final policy because the procedural, continuous arena
-   needs nonlinear long-horizon strategy. Its value is fast iteration and
-   transparent debugging of rewards, masks, terminal states, and parity.
-4. **Train player PPO.** Use parallel seeded environments, action masking for
-   directions that immediately hit walls, periodic checkpoints, verbose
-   progress, and a CSV log. Keep training and held-out seeds disjoint.
-5. **Evaluate for the actual objective.** Report clear rate first, then capture
-   rate, timeout rate, average pellets collected, average return, and median
-   time to clear. Evaluate every checkpoint on the same held-out seed suite and
-   retain the best clear-rate checkpoint rather than blindly exporting the
-   final one. PPO must beat the Sarsa(lambda) baseline on held-out clear rate
-   and pellets collected.
-6. **Validate browser parity.** Export the selected player actor, run it in the
-   existing TypeScript simulation while retaining the built-in greedy enemy,
-   and compare a fixed set of seeds with the Python evaluator. Instrument any
-   mismatch before further training.
+```bash
+npm install
+npm run dev
+npm run build
+```
 
-## Acceptance criteria
-
-The first usable player agent must beat the hand-authored pellet baseline on a
-held-out seed suite, clear a meaningful fraction of arenas, and preserve the
-same outcome on fixed browser-versus-Python parity seeds. We will not claim
-success from survival/timeouts alone.
+`npm run build` type-checks TypeScript and creates the production browser
+bundle. Training scripts and reproducible evaluation commands will live in
+`rl/`.

@@ -1,6 +1,7 @@
 .venv/
 node_modules/
 dist/
+.test-build/
 __pycache__/
 *.py[cod]
 *.egg-info/

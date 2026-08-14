@@ -1,5 +1,5 @@
-import { isBlocked, Point } from './arena';
-import { Direction, directions, EnemyController, EnemyDebugState, GameSimulation } from './simulation';
+import { isBlocked, Point } from './arena.js';
+import { Direction, directions, EnemyController, EnemyDebugState, GameSimulation } from './simulation.js';
 
 const actionOrder: Direction[] = ['up', 'up-right', 'right', 'down-right', 'down', 'down-left', 'left', 'up-left'];
 

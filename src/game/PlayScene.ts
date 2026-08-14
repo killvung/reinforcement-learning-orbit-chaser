@@ -1,9 +1,8 @@
 import Phaser from 'phaser';
-import { GameSimulation, directions } from './simulation';
-import { Point } from './arena';
-import { ArcadeAudio } from './audio';
-import { PpoEnemyController } from './PpoEnemyController';
-import { updateDebugPanel } from '../debugPanel';
+import { GameSimulation, directions } from './simulation.js';
+import { Point } from './arena.js';
+import { ArcadeAudio } from './audio.js';
+import { updateDebugPanel } from '../debugPanel.js';
 
 const palette = { background: 0x071426, arena: 0x0b2941, outline: 0x84dcff, wall: 0x2b86bb, wallEdge: 0x82dcff, pellet: 0xf5dc83, player: 0xffda45, enemy: 0xfa637d };
 type TrailDot = Point & { radius: number; alpha: number; color: number };
@@ -39,7 +38,6 @@ export class PlayScene extends Phaser.Scene {
     this.input.keyboard!.addKey('R').on('down', () => this.restart());
     this.createTouchPad();
     this.restart();
-    void this.loadPpoController();
   }
 
   update(_: number, delta: number): void {
@@ -70,17 +68,6 @@ export class PlayScene extends Phaser.Scene {
   private endRound(text: string): void {
     this.finished = true;
     this.message.setText(`${text}\nScore ${this.simulation.score}\n\nPress R or Restart`);
-  }
-
-  private async loadPpoController(): Promise<void> {
-    try {
-      this.simulation.setEnemyController(await PpoEnemyController.load('/models/enemy-ppo.json'));
-      this.render();
-    } catch (error) {
-      // A missing or invalid model deliberately leaves the built-in greedy
-      // controller active so the game remains playable.
-      console.warn('PPO enemy unavailable; using greedy controller.', error);
-    }
   }
 
   private currentInput(): Point {

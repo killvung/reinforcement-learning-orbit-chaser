@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "tsc -p tsconfig.test.json && node --experimental-specifier-resolution=node --test test/*.test.mjs"
   },
   "dependencies": {
     "phaser": "3.90.0"

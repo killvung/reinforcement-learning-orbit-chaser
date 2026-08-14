@@ -1,4 +1,4 @@
-import { GameSimulation } from './game/simulation';
+import { GameSimulation } from './game/simulation.js';
 
 const panel = document.querySelector<HTMLElement>('#debug-panel');
 const content = document.querySelector<HTMLPreElement>('#debug-content');

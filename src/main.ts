@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import './styles.css';
-import { PlayScene } from './game/PlayScene';
+import { PlayScene } from './game/PlayScene.js';
 
 new Phaser.Game({
   type: Phaser.AUTO,
