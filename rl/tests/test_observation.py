@@ -5,6 +5,7 @@ import numpy as np
 from orbit_chase.arena import Arena, Collectible
 from orbit_chase.constants import OBSERVATION_SIZE
 from orbit_chase.observation import encode
+from orbit_chase.simulation import GameSimulation
 
 
 def make_snapshot():
@@ -49,3 +50,9 @@ def test_encode_preserves_slot_order_active_flags_and_time():
     # First orb active flag is index 122; remaining-time fraction is last.
     assert observation[122] == 0.0
     assert observation[129] == 0.5
+
+
+def test_encode_accepts_real_game_simulation_state():
+    observation = encode(GameSimulation(73))
+
+    assert observation.shape == (OBSERVATION_SIZE,)

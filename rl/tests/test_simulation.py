@@ -189,3 +189,21 @@ def test_movement_into_bar_keeps_player_in_place():
     simulation.move_player(Direction.UP)
 
     assert (simulation.player.x, simulation.player.y) == initial
+
+
+def test_valid_actions_mask_blocks_boundary_core_and_bar_paths():
+    simulation = GameSimulation(73)
+    simulation.player.x = ARENA_CENTER[0] + ARENA_RADIUS - simulation.player.radius - 0.1
+    simulation.player.y = ARENA_CENTER[1]
+    assert simulation.valid_actions()[Direction.RIGHT] is False
+
+    simulation.player.x = ARENA_CENTER[0] + CORE_RADIUS + simulation.player.radius + 0.1
+    assert simulation.valid_actions()[Direction.LEFT] is False
+
+    simulation.arena = Arena(
+        bars=(((300.0, 100.0), (500.0, 100.0)),) * 2,
+        pellet_slots=simulation.arena.pellet_slots,
+        orb_slots=simulation.arena.orb_slots,
+    )
+    simulation.player.x, simulation.player.y = 400.0, 121.1
+    assert simulation.valid_actions()[Direction.UP] is False

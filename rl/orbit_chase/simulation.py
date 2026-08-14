@@ -14,6 +14,7 @@ from .constants import (
     ENEMY_DECISION_SECONDS,
     PHYSICS_DT_SECONDS,
     PLAYER_RADIUS,
+    PLAYER_DECISION_SECONDS,
     PLAYER_SPEED,
     PLAYER_START,
     PELLET_COLLECTION_RADIUS,
@@ -89,6 +90,21 @@ class GameSimulation:
         self.time_remaining -= PHYSICS_DT_SECONDS
         return self._step_events(pellets_collected, orbs_collected)
 
+    def valid_actions(self) -> list[bool]:
+        """Return collision-safe player directions for the next 100 ms decision."""
+        speed_multiplier = (
+            PLAYER_SURGE_SPEED_MULTIPLIER if self.surge_remaining > 0 else 1.0
+        )
+        return [
+            self._can_travel(
+                self.player,
+                direction,
+                PLAYER_DECISION_SECONDS,
+                speed_multiplier,
+            )
+            for direction in Direction
+        ]
+
     def _advance_surge_clock(self) -> bool:
         """Expire Surge before movement, matching the browser simulation."""
         self.surge_remaining = max(0.0, self.surge_remaining - PHYSICS_DT_SECONDS)
@@ -110,17 +126,22 @@ class GameSimulation:
             self.pellet_active,
             PELLET_COLLECTION_RADIUS,
         )
-        orbs = self._collect(self.arena.orb_slots, self.orb_active, ORB_COLLECTION_RADIUS)
+        orbs = self._collect(
+            self.arena.orb_slots, self.orb_active, ORB_COLLECTION_RADIUS
+        )
         if orbs:
             self.surge_remaining = SURGE_DURATION_SECONDS
         return pellets, orbs
 
     def _step_events(self, pellets_collected: int, orbs_collected: int) -> StepEvents:
         """Summarize this tick's collections and terminal conditions."""
-        captured = distance(
-            (self.player.x, self.player.y),
-            (self.enemy.x, self.enemy.y),
-        ) < self.player.radius + self.enemy.radius
+        captured = (
+            distance(
+                (self.player.x, self.player.y),
+                (self.enemy.x, self.enemy.y),
+            )
+            < self.player.radius + self.enemy.radius
+        )
         return StepEvents(
             pellets_collected=pellets_collected,
             orbs_collected=orbs_collected,
@@ -132,20 +153,67 @@ class GameSimulation:
     def _collect(self, slots, active_flags, collection_radius: float) -> int:
         collected = 0
         for index, slot in enumerate(slots):
-            if active_flags[index] and distance((self.player.x, self.player.y), slot.position) <= collection_radius:
+            if (
+                active_flags[index]
+                and distance((self.player.x, self.player.y), slot.position)
+                <= collection_radius
+            ):
                 active_flags[index] = False
                 collected += 1
         return collected
 
     def _choose_enemy_action(self) -> Direction:
-        choices = [direction for direction in Direction if self._can_travel(self.enemy, direction, ENEMY_DECISION_SECONDS)]
-        return min(choices or [self.enemy_action], key=lambda direction: distance((self.enemy.x + DIRECTION_VECTORS[direction][0] * 42, self.enemy.y + DIRECTION_VECTORS[direction][1] * 42), (self.player.x, self.player.y)))
+        choices = [
+            direction
+            for direction in Direction
+            if self._can_travel(self.enemy, direction, ENEMY_DECISION_SECONDS)
+        ]
+        return min(
+            choices or [self.enemy_action],
+            key=lambda direction: distance(
+                (
+                    self.enemy.x + DIRECTION_VECTORS[direction][0] * 42,
+                    self.enemy.y + DIRECTION_VECTORS[direction][1] * 42,
+                ),
+                (self.player.x, self.player.y),
+            ),
+        )
 
-    def _can_travel(self, actor: Actor, direction: Direction, duration: float) -> bool:
-        vector, length = DIRECTION_VECTORS[direction], math.hypot(*DIRECTION_VECTORS[direction])
-        distance_to_travel = actor.speed * duration
+    def _can_travel(
+        self,
+        actor: Actor,
+        direction: Direction,
+        duration: float,
+        speed_multiplier: float = 1.0,
+    ) -> bool:
+        """Check every short segment of a proposed path for obstacle overlap.
+
+        Testing the full swept path prevents an actor from crossing a narrow
+        bar when only its final destination would appear collision-free.
+        """
+        # Resolve the requested direction into a unit movement vector.
+        vector = DIRECTION_VECTORS[direction]
+        direction_length = math.hypot(*vector)
+        unit_direction = (
+            vector[0] / direction_length,
+            vector[1] / direction_length,
+        )
+
+        # Divide the requested distance into short collision-check segments.
+        distance_to_travel = actor.speed * speed_multiplier * duration
         steps = max(1, math.ceil(distance_to_travel / 4))
-        return all(not is_blocked((actor.x + vector[0] / length * distance_to_travel * index / steps, actor.y + vector[1] / length * distance_to_travel * index / steps), actor.radius, self.arena.bars) for index in range(1, steps + 1))
+        step_distance = distance_to_travel / steps
+
+        # Sweep every candidate position; the first obstacle blocks the path.
+        for step_index in range(1, steps + 1):
+            candidate = (
+                actor.x + unit_direction[0] * step_distance * step_index,
+                actor.y + unit_direction[1] * step_distance * step_index,
+            )
+            if is_blocked(candidate, actor.radius, self.arena.bars):
+                return False
+
+        return True
 
     def _move(
         self, actor: Actor, direction: Direction, speed_multiplier: float
