@@ -121,15 +121,6 @@ and return as secondary checks.
 ## Neural fallback
 
 Consider a neural action-value function only after the linear agent fails the
-validation gate. Keep pellets and Orbs as separate typed sets, use masked
-pooling with an explicit empty-set value, and keep bars in global geometry
-features. Do not use true-online traces with the network.
-
-Choose the neural control algorithm before implementation. Sequential Deep
-SARSA without replay preserves the on-policy update. A replay-based method
-needs an explicit off-policy design such as Double DQN, Expected SARSA, or
-Retrace. Do not call a replay update plain on-policy SARSA.
-
-Run the chosen model once on final-test seeds `10000`–`10099` after selection.
-Compare it with all three fixed-policy reference rows in
-[`README.md`](README.md).
+validation gate. [`neural-sarsa.md`](neural-sarsa.md) defines its typed-set
+encoder, online Expected Sarsa update, and validation protocol. It does not
+reuse true-online traces.
