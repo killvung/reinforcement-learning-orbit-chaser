@@ -25,29 +25,31 @@ timeout without clearing pellets is not successful.
 uses a fixed 10 ms physics tick, so a seed and action sequence produce the
 same episode regardless of browser render rate.
 
-The headless training implementation must match this contract:
+The browser and Python implementations share these player-agent rules:
 
-- `reset(seed)` regenerates arena geometry and all collectible slots.
-- `stepFixed(playerInput)` advances exactly one physics tick.
-- `step(elapsed, playerInput)` is the browser adapter and preserves leftover
-  time between render frames.
-- `observe()` returns a versioned 130-feature player observation and an
-  eight-action collision mask for the next 100 ms decision interval.
+- seeded resets regenerate arena geometry and collectible slots;
+- fixed-step calls advance one 10 ms physics tick;
+- the browser adapter preserves render-time remainders;
+- observations contain 130 player features and an eight-action mask for the
+  next 100 ms decision interval.
+
+The parity suite runs 15 shared fixtures. They cover seeded movement, turns,
+the arena boundary, core and bar collisions, Orbs and Surge, pickups, capture,
+clear, timeout, and simultaneous terminal events.
 
 ## RL progression
 
-1. Implement and verify the headless Python environment against fixed seeds.
-2. Benchmark random and hand-authored pellet-seeking players.
-3. Train **True Online Sarsa(lambda)** with linear tile-coded features. This is
+1. Run the fixed random-valid and pellet-seeking baselines on held-out seeds.
+2. Train **True Online Sarsa(lambda)** with linear tile-coded features. This is
    the first learning agent because its values and eligibility traces are easy
    to inspect scientifically.
-4. Evaluate Sarsa(lambda) on held-out seeds before considering PPO.
-5. Add masked PPO only if it beats Sarsa(lambda) and the pellet heuristic on
+3. Evaluate Sarsa(lambda) on held-out seeds before considering PPO.
+4. Add masked PPO only if it beats Sarsa(lambda) and the pellet heuristic on
    held-out clear rate and pellets collected.
 
-The initial reward schedule is: clear `+100`, pellet `+3`, Surge Orb `+10`,
-capture `-100`, timeout `-30`, and a small per-decision cost/progress shaping
-term. Shaping remains small enough that clearing dominates surviving.
+The reward schedule is: clear `+100`, pellet `+3`, Surge Orb `+10`, capture
+`-100`, timeout `-30`, and `-0.01` per decision. Capture takes precedence
+when a capture and clear occur on the same tick.
 
 ## Development
 
@@ -58,5 +60,10 @@ npm run build
 ```
 
 `npm run build` type-checks TypeScript and creates the production browser
-bundle. Training scripts and reproducible evaluation commands will live in
-`rl/`.
+bundle.
+
+Run the held-out non-learning baselines with:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py --episodes 100
+```

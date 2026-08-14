@@ -3,8 +3,18 @@ from types import SimpleNamespace
 import numpy as np
 
 from orbit_chase.arena import Arena, Collectible
-from orbit_chase.constants import OBSERVATION_SIZE
-from orbit_chase.observation import encode
+from orbit_chase.constants import OBSERVATION_SIZE, PELLET_COUNT, SURGE_ORB_COUNT
+from orbit_chase.observation import (
+    BAR_FEATURE_COUNT,
+    COLLECTIBLE_FEATURE_WIDTH,
+    ENEMY_FEATURE_COUNT,
+    PELLET_FEATURE_OFFSET,
+    PLAYER_FEATURE_COUNT,
+    PLAYER_POSITION_SLICE,
+    TIME_FEATURE_COUNT,
+    decode,
+    encode,
+)
 from orbit_chase.simulation import GameSimulation
 
 
@@ -50,6 +60,31 @@ def test_encode_preserves_slot_order_active_flags_and_time():
     # First orb active flag is index 122; remaining-time fraction is last.
     assert observation[122] == 0.0
     assert observation[129] == 0.5
+
+
+def test_decode_reads_player_enemy_and_active_pellet_positions():
+    observation = encode(make_snapshot())
+    view = decode(observation)
+
+    np.testing.assert_allclose(view.player, (0.0, 0.0))
+    np.testing.assert_allclose(view.enemy, (0.5, 0.0))
+    assert len(view.pellets) == 31
+    np.testing.assert_allclose(view.pellets[0], (0.0, 0.0))
+    assert view.time_fraction == 0.5
+
+
+def test_observation_layout_constants_match_the_documented_vector():
+    assert PLAYER_POSITION_SLICE == slice(0, 2)
+    assert PELLET_FEATURE_OFFSET == 24
+    assert (
+        PLAYER_FEATURE_COUNT
+        + ENEMY_FEATURE_COUNT
+        + BAR_FEATURE_COUNT
+        + PELLET_COUNT * COLLECTIBLE_FEATURE_WIDTH
+        + SURGE_ORB_COUNT * COLLECTIBLE_FEATURE_WIDTH
+        + TIME_FEATURE_COUNT
+        == OBSERVATION_SIZE
+    )
 
 
 def test_encode_accepts_real_game_simulation_state():

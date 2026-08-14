@@ -1,6 +1,8 @@
-"""Stable player-policy observation encoding."""
+"""Stable player-policy observation encoding and decoding."""
 
 from __future__ import annotations
+
+from dataclasses import dataclass
 
 import numpy as np
 
@@ -10,10 +12,31 @@ from .constants import (
     ACTION_COUNT,
     ENEMY_DECISION_SECONDS,
     OBSERVATION_SIZE,
+    PELLET_COUNT,
     PLAYER_SPEED,
     ROUND_DURATION_SECONDS,
     SURGE_DURATION_SECONDS,
 )
+
+PLAYER_FEATURE_COUNT = 5
+ENEMY_FEATURE_COUNT = 11
+BAR_FEATURE_COUNT = 8
+COLLECTIBLE_FEATURE_WIDTH = 3
+TIME_FEATURE_COUNT = 1
+
+PLAYER_POSITION_SLICE = slice(0, 2)
+ENEMY_POSITION_SLICE = slice(PLAYER_FEATURE_COUNT, PLAYER_FEATURE_COUNT + 2)
+PELLET_FEATURE_OFFSET = PLAYER_FEATURE_COUNT + ENEMY_FEATURE_COUNT + BAR_FEATURE_COUNT
+
+
+@dataclass(frozen=True)
+class ObservationView:
+    """Named slices of the encoded player observation vector."""
+
+    player: np.ndarray
+    enemy: np.ndarray
+    pellets: np.ndarray
+    time_fraction: float
 
 
 def encode(simulation) -> np.ndarray:
@@ -31,6 +54,23 @@ def encode(simulation) -> np.ndarray:
             f"Expected {OBSERVATION_SIZE} observation values, got {len(values)}."
         )
     return np.asarray(values, dtype=np.float32)
+
+
+def decode(observation: np.ndarray) -> ObservationView:
+    """Read player, enemy, active pellets, and remaining-time fraction."""
+    if observation.shape != (OBSERVATION_SIZE,):
+        raise ValueError(
+            f"Expected {OBSERVATION_SIZE} observation values, got {observation.shape}."
+        )
+    pellet_features = observation[
+        PELLET_FEATURE_OFFSET : PELLET_FEATURE_OFFSET + PELLET_COUNT * COLLECTIBLE_FEATURE_WIDTH
+    ].reshape(PELLET_COUNT, COLLECTIBLE_FEATURE_WIDTH)
+    return ObservationView(
+        player=observation[PLAYER_POSITION_SLICE],
+        enemy=observation[ENEMY_POSITION_SLICE],
+        pellets=pellet_features[pellet_features[:, 2] > 0.5, :2],
+        time_fraction=float(observation[-TIME_FEATURE_COUNT]),
+    )
 
 
 def _player_features(simulation) -> list[float]:

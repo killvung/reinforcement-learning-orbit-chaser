@@ -36,7 +36,13 @@ def test_step_returns_gymnasium_transition_shape():
     assert isinstance(reward, float)
     assert isinstance(terminated, bool)
     assert isinstance(truncated, bool)
-    assert set(info) >= {"captured", "cleared", "pellets_collected"}
+    assert set(info) >= {
+        "captured",
+        "cleared",
+        "timed_out",
+        "pellets_collected",
+        "orbs_collected",
+    }
 
 
 def test_step_accumulates_pickups_across_the_full_decision_interval():

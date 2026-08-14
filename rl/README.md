@@ -1,12 +1,12 @@
 # Reinforcement Learning
 
-This directory contains the headless implementation for the yellow **player**
-agent. The red enemy remains the fixed deterministic greedy controller in the
-browser simulation.
+This directory contains the headless implementation for the yellow player
+agent. The red enemy stays a fixed deterministic controller.
 
 ## Environment contract
 
-The Python environment ports `src/game/simulation.ts` exactly:
+The Python environment matches the player-agent rules in
+`src/game/simulation.ts`:
 
 - fixed 10 ms physics ticks and seeded arena/pickup generation;
 - a 100 ms player decision interval with eight movement actions;
@@ -50,15 +50,38 @@ the associated active flag changes after collection.
 The eight-element action mask is returned alongside, not inside, this vector.
 It uses the same direction order as the enemy-heading one-hot vector. A value
 of `true` means the player can complete that direction's next 100 ms swept
-path without hitting the boundary, core, or a bar.
+path without hitting the boundary, core, or a bar. Fixed-tick collision checks
+remain authoritative if a caller selects an invalid action.
 
+## Non-learning baselines
 
-Coordinates are arena-centered and divided by the arena radius. The matching
-eight-element action mask uses swept collision checks over the next decision
-interval. Collision handling remains authoritative even if an invalid action
-is selected.
+`orbit_chase.baselines` contains two fixed policies that use the Gym state and
+its action mask only:
 
-## First algorithm: True Online Sarsa(lambda)
+- `RandomValidPolicy` samples one valid action from a seed-local NumPy RNG.
+- `PelletSeekingPolicy` projects each valid 100 ms move, then prefers the one
+  nearest to an active pellet while retaining distance from the enemy.
+
+Run the held-out suite with:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py --episodes 100
+```
+
+The command evaluates seeds `10000` through `10099` by default and reports
+clear, capture, and timeout rates; average pellets; return; and time to clear.
+Future training seed ranges must not overlap this evaluation range.
+
+### Reference run
+
+Reference values for seeds `10000` through `10099`:
+
+| Policy | Clear rate | Capture rate | Timeout rate | Mean pellets | Mean return | Mean clear time |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Random valid | 0.00 | 1.00 | 0.00 | 2.11 | -91.6897 | n/a |
+| Pellet seeking | 0.10 | 0.68 | 0.22 | 13.62 | -22.3917 | 8.901 s |
+
+## Next learning algorithm
 
 Sarsa(lambda) is the first learning baseline, not PPO. It will use linear
 action values with sparse tile-coded features, an epsilon-greedy policy over
@@ -67,4 +90,4 @@ feature, action-mask, and trace behavior inspectable before using a neural
 network.
 
 Each run records clear, capture, and timeout rates; pellets collected; return;
-and time to clear. Training and held-out seed ranges must remain disjoint.
+and time to clear. Training and held-out seed ranges remain disjoint.

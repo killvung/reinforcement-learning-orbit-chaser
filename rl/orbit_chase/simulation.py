@@ -7,11 +7,14 @@ from dataclasses import dataclass
 
 from .arena import Arena, make_arena
 from .constants import (
+    DIRECTION_UNITS,
     DIRECTION_VECTORS,
+    ENEMY_LOOKAHEAD_PIXELS,
     ENEMY_RADIUS,
     ENEMY_SPEED,
     ENEMY_START,
     ENEMY_DECISION_SECONDS,
+    PATH_COLLISION_SEGMENT_PIXELS,
     PHYSICS_DT_SECONDS,
     PLAYER_RADIUS,
     PLAYER_DECISION_SECONDS,
@@ -71,12 +74,9 @@ class GameSimulation:
     def move_player(self, direction: Direction, speed_multiplier: float = 1.0) -> None:
         """Move the player for one collision-safe fixed physics tick."""
         self._move(self.player, direction, speed_multiplier)
-        vector = DIRECTION_VECTORS[direction]
-        length = math.hypot(*vector)
-        self.player_velocity = (
-            vector[0] / length * self.player.speed * speed_multiplier,
-            vector[1] / length * self.player.speed * speed_multiplier,
-        )
+        dx, dy = DIRECTION_UNITS[direction]
+        speed = self.player.speed * speed_multiplier
+        self.player_velocity = (dx * speed, dy * speed)
 
     def step(self, player_direction: Direction) -> StepEvents:
         """Advance exactly one fixed tick of player and deterministic enemy rules."""
@@ -168,16 +168,18 @@ class GameSimulation:
             for direction in Direction
             if self._can_travel(self.enemy, direction, ENEMY_DECISION_SECONDS)
         ]
-        return min(
-            choices or [self.enemy_action],
-            key=lambda direction: distance(
+
+        def lookahead_distance(direction: Direction) -> float:
+            dx, dy = DIRECTION_VECTORS[direction]
+            return distance(
                 (
-                    self.enemy.x + DIRECTION_VECTORS[direction][0] * 42,
-                    self.enemy.y + DIRECTION_VECTORS[direction][1] * 42,
+                    self.enemy.x + dx * ENEMY_LOOKAHEAD_PIXELS,
+                    self.enemy.y + dy * ENEMY_LOOKAHEAD_PIXELS,
                 ),
                 (self.player.x, self.player.y),
-            ),
-        )
+            )
+
+        return min(choices or [self.enemy_action], key=lookahead_distance)
 
     def _can_travel(
         self,
@@ -192,23 +194,18 @@ class GameSimulation:
         bar when only its final destination would appear collision-free.
         """
         # Resolve the requested direction into a unit movement vector.
-        vector = DIRECTION_VECTORS[direction]
-        direction_length = math.hypot(*vector)
-        unit_direction = (
-            vector[0] / direction_length,
-            vector[1] / direction_length,
-        )
+        dx, dy = DIRECTION_UNITS[direction]
 
         # Divide the requested distance into short collision-check segments.
-        distance_to_travel = actor.speed * speed_multiplier * duration
-        steps = max(1, math.ceil(distance_to_travel / 4))
-        step_distance = distance_to_travel / steps
+        travel = actor.speed * speed_multiplier * duration
+        steps = max(1, math.ceil(travel / PATH_COLLISION_SEGMENT_PIXELS))
+        step_length = travel / steps
 
         # Sweep every candidate position; the first obstacle blocks the path.
         for step_index in range(1, steps + 1):
             candidate = (
-                actor.x + unit_direction[0] * step_distance * step_index,
-                actor.y + unit_direction[1] * step_distance * step_index,
+                actor.x + dx * step_length * step_index,
+                actor.y + dy * step_length * step_index,
             )
             if is_blocked(candidate, actor.radius, self.arena.bars):
                 return False
@@ -218,12 +215,11 @@ class GameSimulation:
     def _move(
         self, actor: Actor, direction: Direction, speed_multiplier: float
     ) -> None:
-        vector = DIRECTION_VECTORS[direction]
-        length = math.hypot(*vector)
-        distance = actor.speed * speed_multiplier * PHYSICS_DT_SECONDS
+        dx, dy = DIRECTION_UNITS[direction]
+        travel = actor.speed * speed_multiplier * PHYSICS_DT_SECONDS
         candidate = (
-            actor.x + vector[0] / length * distance,
-            actor.y + vector[1] / length * distance,
+            actor.x + dx * travel,
+            actor.y + dy * travel,
         )
         if not is_blocked(candidate, actor.radius, self.arena.bars):
             actor.x, actor.y = candidate

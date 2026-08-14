@@ -107,6 +107,7 @@ class OrbitChasePlayerEnv(gym.Env[dict[str, np.ndarray], int]):
         return {
             "captured": events.captured,
             "cleared": events.cleared,
+            "timed_out": events.timed_out,
             "pellets_collected": events.pellets_collected,
             "orbs_collected": events.orbs_collected,
         }

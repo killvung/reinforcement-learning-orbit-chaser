@@ -1,5 +1,6 @@
 """Shared, versioned Orbit Chase rules."""
 
+import math
 from enum import IntEnum
 from typing import Final
 
@@ -30,6 +31,18 @@ DIRECTION_VECTORS: Final[dict[Direction, tuple[int, int]]] = {
     Direction.UP_LEFT: (-1, -1),
 }
 
+_SQRT_HALF = math.sqrt(0.5)
+DIRECTION_UNITS: Final[dict[Direction, tuple[float, float]]] = {
+    Direction.UP: (0.0, -1.0),
+    Direction.UP_RIGHT: (_SQRT_HALF, -_SQRT_HALF),
+    Direction.RIGHT: (1.0, 0.0),
+    Direction.DOWN_RIGHT: (_SQRT_HALF, _SQRT_HALF),
+    Direction.DOWN: (0.0, 1.0),
+    Direction.DOWN_LEFT: (-_SQRT_HALF, _SQRT_HALF),
+    Direction.LEFT: (-1.0, 0.0),
+    Direction.UP_LEFT: (-_SQRT_HALF, -_SQRT_HALF),
+}
+
 
 # ---------------------------------------------------------------------------
 # Arena geometry
@@ -57,6 +70,8 @@ ENEMY_START: Final = (565.0, 237.0)
 SURGE_DURATION_SECONDS: Final = 4.0
 PLAYER_SURGE_SPEED_MULTIPLIER: Final = 1.32
 ENEMY_SURGE_SPEED_MULTIPLIER: Final = 0.78
+PATH_COLLISION_SEGMENT_PIXELS: Final = 4.0
+ENEMY_LOOKAHEAD_PIXELS: Final = 42.0
 
 
 # ---------------------------------------------------------------------------
