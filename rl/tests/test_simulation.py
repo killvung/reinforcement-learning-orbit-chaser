@@ -207,3 +207,13 @@ def test_valid_actions_mask_blocks_boundary_core_and_bar_paths():
     )
     simulation.player.x, simulation.player.y = 400.0, 121.1
     assert simulation.valid_actions()[Direction.UP] is False
+
+
+def test_surge_speed_can_turn_a_safe_path_into_a_masked_path():
+    simulation = GameSimulation(73)
+    simulation.player.x = ARENA_CENTER[0] + ARENA_RADIUS - simulation.player.radius - 20.0
+    simulation.player.y = ARENA_CENTER[1]
+
+    assert simulation.valid_actions()[Direction.RIGHT] is True
+    simulation.surge_remaining = 1.0
+    assert simulation.valid_actions()[Direction.RIGHT] is False
