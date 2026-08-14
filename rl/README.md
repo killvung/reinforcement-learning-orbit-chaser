@@ -70,10 +70,13 @@ Run the held-out suite with:
 PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py --episodes 100
 ```
 
-The command evaluates seeds `10000` through `10099` by default and reports
-clear, capture, and timeout rates; average pellets; return; and time to clear.
-Time to clear is elapsed simulation time at the clearing tick. Future training
-seed ranges must not overlap this evaluation range.
+The command evaluates final-test seeds `10000` through `10099` by default and
+reports clear, capture, and timeout rates; average pellets; return; and time
+to clear. Time to clear is elapsed simulation time at the clearing tick.
+
+Use seeds `0` through `7999` for training and `8000` through `8999` for
+validation. Select hyperparameters and model families on validation only. Run
+the final-test range after selection.
 
 ### Reference run
 
@@ -93,5 +96,10 @@ valid actions, and true-online eligibility traces. This makes reward,
 feature, action-mask, and trace behavior inspectable before using a neural
 network.
 
+[`sarsa.md`](sarsa.md) defines the linear feature map, true-online update,
+validation gate, and neural fallback. The linear agent comes first. A neural
+agent uses a separate control design and does not reuse true-online traces.
+
 Each run records clear, capture, and timeout rates; pellets collected; return;
-and time to clear. Training and held-out seed ranges remain disjoint.
+and time to clear. The training, validation, and final-test ranges stay
+disjoint.

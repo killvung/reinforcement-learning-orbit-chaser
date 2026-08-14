@@ -40,10 +40,12 @@ the same tick, capture takes precedence in the Gym reward.
 
 1. Maintain deterministic TypeScript/Python parity fixtures for every rule
    transition.
-2. Measure random-valid, pellet-seeking, and enemy-evade players on held-out
-   seeds.
-3. Train True Online Sarsa(lambda) with linear tile coding and inspect values,
-   traces, action masks, and reward components.
-4. Select models on held-out clear rate, with pellet count as a secondary
-   metric.
+2. Measure random-valid, pellet-seeking, and enemy-evade players on the final
+   test seeds.
+3. Train and tune True Online Sarsa(lambda) with linear tile coding on separate
+   training and validation seeds. Inspect values, traces, action masks, and
+   reward components. [`rl/sarsa.md`](../rl/sarsa.md) defines this design and
+   its neural fallback gate.
+4. Run the selected model once on final-test clear rate, with pellet count as a
+   secondary metric.
 5. Consider masked PPO only after it can be fairly compared with Sarsa(lambda).
