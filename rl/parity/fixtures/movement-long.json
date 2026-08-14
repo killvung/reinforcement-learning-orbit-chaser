@@ -1,0 +1,32 @@
+{
+    "seed": 73,
+    "segments": [
+        {"direction": "down-left", "ticks": 40},
+        {"direction": "down-right", "ticks": 40},
+        {"direction": "up-right", "ticks": 40},
+        {"direction": "up-left", "ticks": 40},
+        {"direction": "down-left", "ticks": 40},
+        {"direction": "down-right", "ticks": 40},
+        {"direction": "up-right", "ticks": 40},
+        {"direction": "up-left", "ticks": 40}
+    ],
+    "snapshot_ticks": [
+        0, 1,
+        27, 28, 29,
+        39, 40, 41,
+        55, 56, 57,
+        79, 80, 81,
+        83, 84, 85,
+        111, 112, 113,
+        119, 120, 121,
+        139, 140, 141,
+        167, 168, 169,
+        195, 196, 197,
+        199, 200, 201,
+        223, 224, 225,
+        239, 240, 241,
+        251, 252, 253,
+        279, 280, 281,
+        319, 320
+    ]
+}

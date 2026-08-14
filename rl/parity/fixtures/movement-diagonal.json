@@ -1,0 +1,9 @@
+{
+    "seed": 73,
+    "segments": [
+        {"direction": "up-right", "ticks": 10},
+        {"direction": "down-right", "ticks": 10},
+        {"direction": "down-left", "ticks": 10}
+    ],
+    "snapshot_ticks": [0, 1, 10, 20, 30]
+}

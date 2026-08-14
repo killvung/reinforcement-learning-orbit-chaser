@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
+import sys
 from math import isclose
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[2]
+FIXTURES_DIRECTORY = ROOT / "rl" / "parity" / "fixtures"
 
 
 def compare(left, right, path: str = "root") -> None:
@@ -27,24 +30,33 @@ def compare(left, right, path: str = "root") -> None:
         assert left == right, f"{path}: {left!r} != {right!r}"
 
 
+def snapshot(command: list[str], fixture: Path) -> dict:
+    """Run one snapshot executable against a named shared fixture."""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = "rl"
+    try:
+        result = subprocess.run(
+            [*command, str(fixture)],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=environment,
+        )
+    except subprocess.CalledProcessError as error:
+        message = error.stderr.strip() or error.stdout.strip() or "no diagnostic output"
+        raise RuntimeError(f"Snapshot failed for {fixture.name}:\n{message}") from error
+    return json.loads(result.stdout)
+
+
 def main() -> None:
-    typescript = subprocess.run(
-        ["node", "test/parity-snapshot.mjs"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
-    python = subprocess.run(
-        ["python3", "rl/parity/python_snapshot.py"],
-        cwd=ROOT,
-        check=True,
-        capture_output=True,
-        text=True,
-        env={"PYTHONPATH": "rl"},
-    )
-    compare(json.loads(typescript.stdout), json.loads(python.stdout))
-    print("TypeScript/Python parity fixture passed.")
+    fixtures = sorted(FIXTURES_DIRECTORY.glob("*.json"))
+    assert fixtures, "No parity fixtures found."
+    for fixture in fixtures:
+        typescript = snapshot(["node", "test/parity-snapshot.mjs"], fixture)
+        python = snapshot([sys.executable, "rl/parity/python_snapshot.py"], fixture)
+        compare(typescript, python, fixture.stem)
+        print(f"TypeScript/Python parity fixture passed: {fixture.name}")
 
 
 if __name__ == "__main__":

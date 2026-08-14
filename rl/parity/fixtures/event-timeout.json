@@ -1,0 +1,10 @@
+{
+    "seed": 73,
+    "setup": {
+        "player": [250, 500],
+        "enemy": [550, 100],
+        "time_remaining": 0.005
+    },
+    "segments": [{"direction": "up", "ticks": 1}],
+    "snapshot_ticks": [0, 1]
+}

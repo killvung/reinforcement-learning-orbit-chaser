@@ -1,0 +1,10 @@
+{
+    "seed": 73,
+    "setup": {
+        "player": [250, 500],
+        "enemy": [550, 100],
+        "surge_remaining": 0.01
+    },
+    "segments": [{"direction": "up", "ticks": 2}],
+    "snapshot_ticks": [0, 1, 2]
+}

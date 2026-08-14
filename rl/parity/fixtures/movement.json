@@ -1,34 +1,7 @@
 {
     "seed": 73,
-    "actions": [
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right",
-        "right"
+    "segments": [
+        {"direction": "right", "ticks": 28}
     ],
     "snapshot_ticks": [
         0,

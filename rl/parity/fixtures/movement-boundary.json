@@ -1,0 +1,7 @@
+{
+    "seed": 73,
+    "segments": [
+        {"direction": "left", "ticks": 28}
+    ],
+    "snapshot_ticks": [0, 1, 10, 12, 13, 28]
+}

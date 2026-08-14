@@ -1,0 +1,9 @@
+{
+    "seed": 73,
+    "setup": {
+        "player": [448.1, 322],
+        "enemy": [550, 100]
+    },
+    "segments": [{"direction": "left", "ticks": 2}],
+    "snapshot_ticks": [0, 1, 2]
+}
