@@ -119,6 +119,8 @@ class OrbitChasePlayerEnv(gym.Env[dict[str, np.ndarray], int]):
             raise ValueError(f"Invalid action: {action}")
         reward, collected, orb = -0.01, 0, 0
         for _ in range(DECISION_TICKS):
+            # Match TypeScript: Surge expires before this tick's movement.
+            self.surge_remaining = max(0, self.surge_remaining - DT)
             surge = self.surge_remaining > 0
             self._move(self.player, action, 1.32 if surge else 1)
             vx, vy = VECTORS[action]
@@ -132,7 +134,6 @@ class OrbitChasePlayerEnv(gym.Env[dict[str, np.ndarray], int]):
                 self.enemy_remaining = ENEMY_INTERVAL
             self._move(self.enemy, self.enemy_action, 0.78 if surge else 1)
             self.enemy_remaining -= DT
-            self.surge_remaining = max(0, self.surge_remaining - DT)
             self.time_remaining -= DT
             for slot in self.pellets:
                 if (
