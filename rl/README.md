@@ -26,6 +26,33 @@ Its 130-element observation is:
 | Time fraction | 1 |
 | **Total** | **130** |
 
+### Player observation vector (130 values)
+
+All coordinates use the same arena-relative normalization:
+`(coordinate - arenaCenter) / arenaRadius`. Velocities are divided by the
+player's base speed. Each reset keeps collectible-slot positions fixed; only
+the associated active flag changes after collection.
+
+| Indices | Values | Count |
+| --- | --- | ---: |
+| 0–1 | Player normalized `x`, `y` | 2 |
+| 2–3 | Player velocity `x`, `y` | 2 |
+| 4 | Player Surge time remaining / 4 seconds | 1 |
+| 5–6 | Enemy normalized `x`, `y` | 2 |
+| 7–14 | Enemy heading one-hot: `up`, `up-right`, `right`, `down-right`, `down`, `down-left`, `left`, `up-left` | 8 |
+| 15 | Remaining fraction of the enemy's 0.28-second decision interval | 1 |
+| 16–19 | First bar: normalized `from.x`, `from.y`, `to.x`, `to.y` | 4 |
+| 20–23 | Second bar: normalized `from.x`, `from.y`, `to.x`, `to.y` | 4 |
+| 24–119 | Pellets 0–31, each: normalized `x`, `y`, `active` (1 or 0) | 96 |
+| 120–128 | Surge Orbs 0–2, each: normalized `x`, `y`, `active` (1 or 0) | 9 |
+| 129 | Remaining round time / 60 seconds | 1 |
+
+The eight-element action mask is returned alongside, not inside, this vector.
+It uses the same direction order as the enemy-heading one-hot vector. A value
+of `true` means the player can complete that direction's next 100 ms swept
+path without hitting the boundary, core, or a bar.
+
+
 Coordinates are arena-centered and divided by the arena radius. The matching
 eight-element action mask uses swept collision checks over the next decision
 interval. Collision handling remains authoritative even if an invalid action
@@ -41,19 +68,3 @@ network.
 
 Each run records clear, capture, and timeout rates; pellets collected; return;
 and time to clear. Training and held-out seed ranges must remain disjoint.
-
-## Planned layout
-
-```text
-rl/
-  orbit_chase_player_env.py  # Headless environment
-  tile_coder.py              # Sparse tile features
-  train_sarsa.py             # True Online Sarsa(lambda)
-  evaluate.py                # Shared held-out evaluation
-  tests/                     # Python environment/parity tests
-  models/                    # Ignored checkpoints
-  results/                   # Ignored experiment data
-```
-
-PPO is explicitly deferred until this environment, heuristic baseline, and
-Sarsa(lambda) evaluation are reproducible.

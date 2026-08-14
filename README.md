@@ -34,11 +34,6 @@ The headless training implementation must match this contract:
 - `observe()` returns a versioned 130-feature player observation and an
   eight-action collision mask for the next 100 ms decision interval.
 
-Observation features are normalized arena-relative actor state, enemy heading
-and decision-clock fraction, both bar endpoints, 32 pellet slots, three orb
-slots, and remaining time. Collected slots keep their position and switch only
-their active flag, keeping the feature order fixed.
-
 ## RL progression
 
 1. Implement and verify the headless Python environment against fixed seeds.
