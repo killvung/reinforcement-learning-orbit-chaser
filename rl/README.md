@@ -55,12 +55,14 @@ remain authoritative if a caller selects an invalid action.
 
 ## Non-learning baselines
 
-`orbit_chase.baselines` contains two fixed policies that use the Gym state and
+`orbit_chase.policies` contains three fixed policies that use the Gym state and
 its action mask only:
 
 - `RandomValidPolicy` samples one valid action from a seed-local NumPy RNG.
 - `PelletSeekingPolicy` projects each valid 100 ms move, then prefers the one
   nearest to an active pellet while retaining distance from the enemy.
+- `EnemyEvadePolicy` projects each valid 100 ms move and chooses the one that
+  ends farthest from the enemy.
 
 Run the held-out suite with:
 
@@ -70,7 +72,8 @@ PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py --episodes 100
 
 The command evaluates seeds `10000` through `10099` by default and reports
 clear, capture, and timeout rates; average pellets; return; and time to clear.
-Future training seed ranges must not overlap this evaluation range.
+Time to clear is elapsed simulation time at the clearing tick. Future training
+seed ranges must not overlap this evaluation range.
 
 ### Reference run
 
@@ -80,6 +83,7 @@ Reference values for seeds `10000` through `10099`:
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
 | Random valid | 0.00 | 1.00 | 0.00 | 2.11 | -91.6897 | n/a |
 | Pellet seeking | 0.10 | 0.68 | 0.22 | 13.62 | -22.3917 | 8.901 s |
+| Enemy evade | 0.00 | 0.02 | 0.98 | 1.41 | -32.9302 | n/a |
 
 ## Next learning algorithm
 

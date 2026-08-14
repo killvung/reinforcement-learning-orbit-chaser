@@ -39,7 +39,8 @@ clear, timeout, and simultaneous terminal events.
 
 ## RL progression
 
-1. Run the fixed random-valid and pellet-seeking baselines on held-out seeds.
+1. Run the fixed random-valid, pellet-seeking, and enemy-evade baselines on
+   held-out seeds.
 2. Train **True Online Sarsa(lambda)** with linear tile-coded features. This is
    the first learning agent because its values and eligibility traces are easy
    to inspect scientifically.

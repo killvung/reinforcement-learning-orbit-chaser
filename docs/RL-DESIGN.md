@@ -40,7 +40,8 @@ the same tick, capture takes precedence in the Gym reward.
 
 1. Maintain deterministic TypeScript/Python parity fixtures for every rule
    transition.
-2. Measure random-valid and pellet-seeking players on held-out seeds.
+2. Measure random-valid, pellet-seeking, and enemy-evade players on held-out
+   seeds.
 3. Train True Online Sarsa(lambda) with linear tile coding and inspect values,
    traces, action masks, and reward components.
 4. Select models on held-out clear rate, with pellet count as a secondary

@@ -15,7 +15,6 @@ from .rules import (
     TerminalOutcome,
 )
 from .environment import OrbitChasePlayerEnv
-from .observation import decode
 from .policies import PlayerPolicy
 
 
@@ -120,7 +119,9 @@ def _play_episode(policy: PlayerPolicy, seed: int) -> _Episode:
                 episode_return=episode_return,
                 pellets=episode_pellets,
                 outcome=outcome,
-                clear_time_seconds=_clear_time_seconds(outcome, state),
+                clear_time_seconds=_clear_time_seconds(
+                    outcome, environment.simulation.time_remaining
+                ),
             )
 
 
@@ -130,11 +131,11 @@ def _terminal_outcome(info: dict[str, bool | int]) -> TerminalOutcome:
 
 
 def _clear_time_seconds(
-    outcome: TerminalOutcome, state: dict[str, np.ndarray]
+    outcome: TerminalOutcome, time_remaining: float
 ) -> float | None:
     if outcome is not TerminalOutcome.CLEARED:
         return None
-    return (1.0 - decode(state["observation"]).time_fraction) * ROUND_DURATION_SECONDS
+    return ROUND_DURATION_SECONDS - time_remaining
 
 
 def _log_episode(policy_name: str, index: int, total: int, episode: _Episode) -> None:
