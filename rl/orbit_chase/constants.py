@@ -67,6 +67,8 @@ PHYSICS_DT_SECONDS: Final = 0.01
 PLAYER_DECISION_SECONDS: Final = 0.10
 ENEMY_DECISION_SECONDS: Final = 0.28
 ROUND_DURATION_SECONDS: Final = 60.0
+PELLET_COLLECTION_RADIUS: Final = 18.0
+ORB_COLLECTION_RADIUS: Final = 22.0
 
 
 # ---------------------------------------------------------------------------
