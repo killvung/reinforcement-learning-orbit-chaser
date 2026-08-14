@@ -1,7 +1,7 @@
 """Shared, versioned Orbit Chase rules."""
 
 import math
-from enum import IntEnum
+from enum import Enum, IntEnum
 from typing import Final
 
 
@@ -115,3 +115,19 @@ REWARD_PER_ORB: Final = 10.0
 REWARD_CLEAR: Final = 100.0
 REWARD_CAPTURE: Final = -100.0
 REWARD_TIMEOUT: Final = -30.0
+
+
+# ---------------------------------------------------------------------------
+# Held-out evaluation
+# ---------------------------------------------------------------------------
+
+HELD_OUT_SEED_START: Final = 10_000
+DEFAULT_EVALUATION_EPISODES: Final = 100
+
+
+class TerminalOutcome(str, Enum):
+    """How one held-out episode ended. Member values match Gym info flags."""
+
+    CAPTURED = "captured"
+    CLEARED = "cleared"
+    TIMEOUT = "timed_out"

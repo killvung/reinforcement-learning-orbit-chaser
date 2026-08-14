@@ -1,13 +1,17 @@
 import numpy as np
 
-from orbit_chase.baselines import (
+from orbit_chase.rules import ACTION_COUNT, OBSERVATION_SIZE
+from orbit_chase.observation import (
+    COLLECTIBLE_FEATURE_WIDTH,
+    ENEMY_POSITION_SLICE,
+    PELLET_FEATURE_OFFSET,
+)
+from orbit_chase.policies import (
+    EnemyEvadePolicy,
     PelletSeekingPolicy,
     Policy,
     RandomValidPolicy,
-    evaluate_policy,
 )
-from orbit_chase.rules import ACTION_COUNT, OBSERVATION_SIZE
-from orbit_chase.observation import COLLECTIBLE_FEATURE_WIDTH, PELLET_FEATURE_OFFSET
 
 
 def _state() -> dict[str, np.ndarray]:
@@ -36,6 +40,16 @@ def test_pellet_seeking_policy_uses_only_the_observation_and_action_mask():
     assert PelletSeekingPolicy().choose(state, np.random.default_rng(73)) != 2
 
 
+def test_enemy_evade_policy_moves_away_from_the_enemy():
+    state = _state()
+    state["observation"][ENEMY_POSITION_SLICE] = [0.5, 0.0]
+
+    assert EnemyEvadePolicy().choose(state, np.random.default_rng(73)) == 6
+
+    state["action_mask"][6] = 0
+    assert EnemyEvadePolicy().choose(state, np.random.default_rng(73)) != 6
+
+
 def test_policy_rejects_a_masked_action_from_select():
     class IllegalPolicy(Policy):
         name = "illegal"
@@ -52,13 +66,3 @@ def test_policy_rejects_a_masked_action_from_select():
         assert str(error) == "illegal selected masked action 0."
     else:
         raise AssertionError("Policy.choose should reject a masked action")
-
-
-def test_baseline_evaluation_is_reproducible_for_fixed_held_out_seeds():
-    seeds = (10_000, 10_001)
-
-    first = evaluate_policy(RandomValidPolicy(), seeds)
-    second = evaluate_policy(RandomValidPolicy(), seeds)
-
-    assert first == second
-    assert first.episodes == len(seeds)
