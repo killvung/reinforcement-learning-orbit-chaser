@@ -1,0 +1,39 @@
+{
+    "seed": 73,
+    "actions": [
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right",
+        "right"
+    ],
+    "snapshot_ticks": [
+        0,
+        1,
+        10,
+        28
+    ]
+}
