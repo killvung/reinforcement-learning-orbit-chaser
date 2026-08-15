@@ -71,9 +71,8 @@ Run the held-out suite with:
 PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py --episodes 100
 ```
 
-The command evaluates final-test seeds `10000` through `10099` by default and
-reports clear, capture, and timeout rates; average pellets; return; and time
-to clear. Time to clear is elapsed simulation time at the clearing tick.
+`--checkpoint` requires `--start-seed`. Use `8000` for validation and `10000`
+for the one-shot final test. Heuristic-only runs still default to `10000`.
 
 Use seeds `0` through `7999` for training and `8000` through `8999` for
 validation. Select hyperparameters and model families on validation only. Run
