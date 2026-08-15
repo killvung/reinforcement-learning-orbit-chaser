@@ -88,6 +88,8 @@ Reference values for seeds `10000` through `10099`:
 | Pellet seeking | 0.10 | 0.68 | 0.22 | 13.62 | -22.3917 | 8.901 s |
 | Enemy evade | 0.00 | 0.02 | 0.98 | 1.41 | -32.9302 | n/a |
 
+Current training status and the next experiment are in [`HANDOFF.md`](HANDOFF.md).
+
 ## Next learning algorithm
 
 Sarsa(lambda) is the first learning baseline, not PPO. It will use linear
