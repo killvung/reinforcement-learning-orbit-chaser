@@ -2,12 +2,18 @@
 
 ## Decision
 
-Build one linear, masked True Online Sarsa(lambda) agent before considering a
-neural action-value function. The linear agent keeps each feature, action
+Use one linear, masked True Online Sarsa(lambda) agent before considering a
+neural action-value function. The implementation keeps each feature, action
 value, weight, and eligibility trace inspectable.
 
 The agent acts once per 100 ms Gym decision. The fixed red enemy, collision
 rules, and action mask remain environment dynamics.
+
+`LinearSarsaAgent` implements the shared `Agent` contract in
+`orbit_chase.agent`: Gym `q_values(state)`, masked epsilon-greedy
+`select_action`, and `update(Transition)`. A later neural Expected-Sarsa
+agent uses the same surface. It ignores `Transition.next_action` and queues
+n-step returns inside `update`. Held-out evaluation uses `choose` (greedy).
 
 ## Seed protocol
 
@@ -52,24 +58,27 @@ Version one uses these state groups:
 | Player position | indices 0–1 | one 2-D tile group |
 | Player velocity | indices 2–3 | one 2-D tile group |
 | Enemy relative position | indices 0–1 and 5–6 | one 2-D tile group |
-| Enemy heading and clock | indices 7–15 | direct binary and scalar features |
-| Nearest pellets | active entries from 24–119 | four nearest relative `(dx, dy)` pairs, ordered by distance then coordinates |
-| Orbs | active entries from 120–128 | three nearest relative `(dx, dy)` pairs, ordered by distance then coordinates |
+| Enemy heading and clock | indices 7–15 | eight direct binary heading features and one 1-D tile group for the clock |
+| Nearest pellets | active entries from 24–119 | occupancy bit plus relative `(dx, dy)` tiles for the four nearest; absent bit only when a rank is empty |
+| Orbs | active entries from 120–128 | occupancy bit plus relative `(dx, dy)` tiles for each of the three ranks; absent bit when empty |
 | Bars | endpoints 16–23 | one relative closest-point `(dx, dy)` pair per bar, with bars sorted lexicographically |
 | Surge and time | indices 4 and 129 | one 2-D tile group |
 | Action mask | public mask | eight direct binary features |
 
 Each tile group uses eight offset tilings with eight bins per active dimension.
 Clip normalized positions and relative offsets to `[-2, 2]`; clip normalized
-velocities to `[-1, 1]`; clip fractions to `[0, 1]`. Give every feature group
-and tiling a fixed integer salt. Hash into `2^18` feature indices with one
-documented hash implementation and seed. Deduplicate collisions into binary
-features, then return sorted indices so tests can compare exact outputs.
+velocities to `[-1, 1]`; clip fractions to `[0, 1]`. Tile bin indices stay in
+`0` through `bins-1`; the clipped upper endpoint uses the last bin. Give every feature group
+and tiling a fixed integer salt. Pellet ranks use `10–13`, Orb ranks `20–22`,
+bars `30–31`, surge and time `40`, heading `50`, and the action mask `60`.
+Hash into `2^18` feature indices with one documented hash implementation and
+seed. Deduplicate collisions into binary features, then return sorted indices
+so tests can compare exact outputs.
 
-The nearest-pellet and Orb groups use zero-filled entries when fewer objects
-remain. Their rank stays part of the feature-group salt. This prevents a tile
-from depending on a procedural slot index while preserving nearest-object
-order.
+The nearest-pellet and Orb groups keep rank in the feature-group salt. An
+occupied rank hashes a present bit plus relative `(dx, dy)` tiles. An empty
+rank hashes only an absent bit, so it does not look like an object on the
+player.
 
 ## Linear action values and traces
 

@@ -96,6 +96,20 @@ valid actions, and true-online eligibility traces. This makes reward,
 feature, action-mask, and trace behavior inspectable before using a neural
 network.
 
+The implementation lives in `orbit_chase.sarsa` and
+`orbit_chase.sarsa_training`. Run a short deterministic smoke run with:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/train_sarsa.py --episodes 3 --agent-seed 73
+```
+
+`--verbose` prints one JSON object per episode to stderr. `--log-every 100`
+prints cumulative rates. `--log path.jsonl` writes the config and those
+episode records to disk.
+
+Use `--episodes 8000 --seed-start 0` for the documented training split. Tune
+the resulting candidates on validation seeds before running final-test seeds.
+
 [`sarsa.md`](sarsa.md) defines the linear feature map, true-online update, and
 validation gate. [`neural-sarsa.md`](neural-sarsa.md) defines the separate
 online Expected-Sarsa fallback. The linear agent comes first, and the neural
