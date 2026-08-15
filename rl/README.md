@@ -103,12 +103,37 @@ The implementation lives in `orbit_chase.sarsa` and
 PYTHONPATH=rl .venv/bin/python rl/train_sarsa.py --episodes 3 --agent-seed 73
 ```
 
-`--verbose` prints one JSON object per episode to stderr. `--log-every 100`
-prints cumulative rates. `--log path.jsonl` writes the config and those
-episode records to disk.
+Training writes `rl/models/linear-sarsa-YYYYMMDD-HHMMSS.npz` at the end and,
+with `--checkpoint-every 100` (the default), also writes
+`linear-sarsa-YYYYMMDD-HHMMSS-epN.npz` during the run. Evaluate a checkpoint
+with `--checkpoint` on `rl/evaluate_baselines.py`; both baseline and
+checkpoint evals write timestamped JSON next to that file.
 
-Use `--episodes 8000 --seed-start 0` for the documented training split. Tune
-the resulting candidates on validation seeds before running final-test seeds.
+`--verbose` prints one JSON object per episode to stderr. `--log-every 100`
+prints a timestamped cumulative summary. `--log path.jsonl` writes the config
+and those episode records to disk. `--lambda` and `--alpha` override the
+documented initial settings (`0.90` and `0.1 / 8`).
+
+The first λ=0.90 pass on seeds `0–7999` stalled: 0 clears by episode 1600,
+mean pellets near 3.1, and rising mean |δ|. The next linear candidate changes
+only lambda. Halt if clears stay 0 and |δ| keeps climbing:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/train_sarsa.py --episodes 800 --seed-start 0 \
+  --agent-seed 73 --lambda 0.5 --log rl/models/linear-sarsa-lambda05-train.jsonl
+```
+
+Then greedy-eval the latest checkpoint on validation seeds, not final-test:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py \
+  --checkpoint rl/models/linear-sarsa-TIMESTAMP.npz \
+  --start-seed 8000 --episodes 50
+```
+
+Use `--episodes 8000 --seed-start 0` only for a candidate that already shows
+clears or contracting |δ| on a short diagnostic. Tune on validation seeds
+before running final-test seeds.
 
 [`sarsa.md`](sarsa.md) defines the linear feature map, true-online update, and
 validation gate. [`neural-sarsa.md`](neural-sarsa.md) defines the separate

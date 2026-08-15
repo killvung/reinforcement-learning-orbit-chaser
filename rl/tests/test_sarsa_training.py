@@ -2,6 +2,7 @@ import io
 import json
 import tempfile
 from contextlib import redirect_stderr
+from datetime import datetime
 from pathlib import Path
 
 from orbit_chase.rules import TerminalOutcome
@@ -9,6 +10,7 @@ from orbit_chase.sarsa import FeatureEncoder, SarsaConfig
 from orbit_chase.sarsa_training import (
     TrainingLog,
     _terminal_outcome,
+    format_rolling_summary,
     train_linear_sarsa,
 )
 
@@ -72,3 +74,40 @@ def test_jsonl_log_writes_config_then_episode():
         assert config["agent"] == "linear-sarsa"
         assert config["episodes"] == 1
         assert episode["seed"] == 0
+
+
+def test_after_episode_hook_runs_once_per_episode():
+    seen: list[int] = []
+
+    def after_episode(progress):
+        seen.append(progress.episode_number)
+        assert progress.episode_count == 2
+        assert progress.decisions > 0
+
+    train_linear_sarsa(
+        seeds=(0, 1),
+        config=SarsaConfig(alpha=0.05, epsilon=0.2),
+        encoder=FeatureEncoder(capacity=4096),
+        seed=73,
+        log=TrainingLog(log_every=0, after_episode=after_episode),
+    )
+    assert seen == [1, 2]
+
+
+def test_rolling_summary_is_aligned_and_timestamped():
+    line = format_rolling_summary(
+        episode_number=100,
+        episode_count=8000,
+        clears=0,
+        captures=99,
+        timeouts=1,
+        returns=[-88.3783],
+        pellets=[2],
+        abs_deltas=[8.0139],
+        now=datetime(2026, 8, 14, 23, 28, 41),
+    )
+    assert line == (
+        "2026-08-14 23:28:41   100/8000  "
+        "clear 0.00  capture 0.99  timeout 0.01  "
+        "pellets   2.00  return  -88.3783  abs_delta  8.0139"
+    )

@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, replace
+from datetime import datetime
 from pathlib import Path
 from typing import Sequence, TextIO
 
@@ -36,6 +38,22 @@ class TrainingResult:
 
 
 @dataclass(frozen=True)
+class EpisodeProgress:
+    """Cumulative training state after one finished episode."""
+
+    episode_number: int
+    episode_count: int
+    agent: Agent
+    decisions: int
+    clears: int
+    captures: int
+    timeouts: int
+    mean_return: float
+    mean_pellets: float
+    mean_abs_delta: float
+
+
+@dataclass(frozen=True)
 class TrainingLog:
     """Where to write per-episode records and rolling summaries."""
 
@@ -43,6 +61,7 @@ class TrainingLog:
     log_every: int = DEFAULT_LOG_EVERY
     jsonl_path: str | Path | None = None
     config_record: dict | None = None
+    after_episode: Callable[[EpisodeProgress], None] | None = None
 
 
 def train_linear_sarsa(
@@ -60,10 +79,8 @@ def train_linear_sarsa(
     seed_list = tuple(int(value) for value in seeds)
     resolved = log or TrainingLog()
     if resolved.config_record is None:
-        resolved = TrainingLog(
-            verbose=resolved.verbose,
-            log_every=resolved.log_every,
-            jsonl_path=resolved.jsonl_path,
+        resolved = replace(
+            resolved,
             config_record=_linear_config_record(
                 agent, config, seed_list, seed, final_epsilon
             ),
@@ -132,6 +149,23 @@ def train_agent(
                 pellets=pellets,
                 abs_deltas=abs_deltas,
             )
+            if settings.after_episode is not None:
+                settings.after_episode(
+                    EpisodeProgress(
+                        episode_number=episode_index + 1,
+                        episode_count=len(seed_list),
+                        agent=agent,
+                        decisions=decisions,
+                        clears=clears,
+                        captures=captures,
+                        timeouts=timeouts,
+                        mean_return=float(np.mean(returns)),
+                        mean_pellets=float(np.mean(pellets)),
+                        mean_abs_delta=(
+                            float(np.mean(abs_deltas)) if abs_deltas else 0.0
+                        ),
+                    )
+                )
     finally:
         if jsonl is not None:
             jsonl.close()
@@ -285,15 +319,19 @@ def _emit_episode_logs(
     if log_every > 0 and (
         episode_number % log_every == 0 or episode_number == episode_count
     ):
-        _print_rolling_summary(
-            episode_number,
-            episode_count,
-            clears,
-            captures,
-            timeouts,
-            returns,
-            pellets,
-            abs_deltas,
+        print(
+            format_rolling_summary(
+                episode_number,
+                episode_count,
+                clears,
+                captures,
+                timeouts,
+                returns,
+                pellets,
+                abs_deltas,
+            ),
+            file=sys.stderr,
+            flush=True,
         )
 
 
@@ -312,7 +350,7 @@ def _episode_payload(record: dict) -> dict:
     return payload
 
 
-def _print_rolling_summary(
+def format_rolling_summary(
     episode_number: int,
     episode_count: int,
     clears: int,
@@ -321,15 +359,18 @@ def _print_rolling_summary(
     returns: list[float],
     pellets: list[int],
     abs_deltas: list[float],
-) -> None:
-    print(
-        f"{episode_number}/{episode_count}  "
-        f"clear={clears / episode_number:.2f}  "
-        f"capture={captures / episode_number:.2f}  "
-        f"timeout={timeouts / episode_number:.2f}  "
-        f"mean_pellets={float(np.mean(pellets)):.2f}  "
-        f"mean_return={float(np.mean(returns)):.4f}  "
-        f"mean_abs_delta={float(np.mean(abs_deltas)) if abs_deltas else 0.0:.4f}",
-        file=sys.stderr,
-        flush=True,
+    now: datetime | None = None,
+) -> str:
+    """One aligned stderr line for a cumulative training checkpoint."""
+    stamp = (now or datetime.now()).strftime("%Y-%m-%d %H:%M:%S")
+    width = len(str(episode_count))
+    mean_delta = float(np.mean(abs_deltas)) if abs_deltas else 0.0
+    return (
+        f"{stamp}  {episode_number:>{width}}/{episode_count}  "
+        f"clear {clears / episode_number:4.2f}  "
+        f"capture {captures / episode_number:4.2f}  "
+        f"timeout {timeouts / episode_number:4.2f}  "
+        f"pellets {float(np.mean(pellets)):6.2f}  "
+        f"return {float(np.mean(returns)):9.4f}  "
+        f"abs_delta {mean_delta:7.4f}"
     )
