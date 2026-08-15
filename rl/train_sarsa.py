@@ -10,6 +10,7 @@ from pathlib import Path
 from orbit_chase.checkpoint import DEFAULT_ARTIFACT_DIR, local_timestamp, save_linear_sarsa
 from orbit_chase.sarsa import LinearSarsaAgent, SarsaConfig
 from orbit_chase.sarsa_training import (
+    DEFAULT_EPSILON_HORIZON_EPISODES,
     DEFAULT_LOG_EVERY,
     EpisodeProgress,
     TrainingLog,
@@ -24,13 +25,24 @@ def main() -> None:
     parser.add_argument("--episodes", type=int, default=8_000)
     parser.add_argument("--seed-start", type=int, default=0)
     parser.add_argument("--agent-seed", type=int, default=73)
-    parser.add_argument("--alpha", type=float, default=defaults.alpha)
+    parser.add_argument(
+        "--alpha",
+        type=float,
+        default=defaults.alpha,
+        help="Effective Sarsa step α‖x‖² (default: 0.1).",
+    )
     parser.add_argument(
         "--lambda",
         dest="lambda_",
         type=float,
         default=defaults.lambda_,
         help="Eligibility trace decay (default: 0.90).",
+    )
+    parser.add_argument(
+        "--epsilon-horizon-episodes",
+        type=int,
+        default=DEFAULT_EPSILON_HORIZON_EPISODES,
+        help="Episode count over which epsilon decays 0.20 → 0.02 (default: 8000).",
     )
     parser.add_argument(
         "-v",
@@ -73,6 +85,8 @@ def main() -> None:
         parser.error("--alpha must be positive")
     if not 0.0 <= args.lambda_ <= 1.0:
         parser.error("--lambda must lie in [0, 1]")
+    if args.epsilon_horizon_episodes < 1:
+        parser.error("--epsilon-horizon-episodes must be positive")
 
     seed_start = args.seed_start
     seeds = tuple(range(seed_start, seed_start + args.episodes))
@@ -93,6 +107,7 @@ def main() -> None:
         seeds=seeds,
         config=config,
         seed=args.agent_seed,
+        epsilon_horizon_episodes=args.epsilon_horizon_episodes,
         log=TrainingLog(
             verbose=args.verbose,
             log_every=args.log_every,

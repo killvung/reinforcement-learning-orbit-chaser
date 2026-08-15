@@ -5,10 +5,13 @@ from contextlib import redirect_stderr
 from datetime import datetime
 from pathlib import Path
 
+import pytest
+
 from orbit_chase.rules import TerminalOutcome
 from orbit_chase.sarsa import FeatureEncoder, SarsaConfig
 from orbit_chase.sarsa_training import (
     TrainingLog,
+    _epsilon_for_episode,
     _terminal_outcome,
     format_rolling_summary,
     train_linear_sarsa,
@@ -53,6 +56,7 @@ def test_verbose_episode_log_is_json():
 
     payload = json.loads(stderr.getvalue().strip())
     assert payload["seed"] == 0
+    assert payload["epsilon"] == 0.2
     assert payload["outcome"] in {"captured", "cleared", "timeout"}
     assert payload["trace_count"] > 0
     assert payload["nonzero_weights"] > 0
@@ -73,6 +77,7 @@ def test_jsonl_log_writes_config_then_episode():
         episode = json.loads(lines[1])
         assert config["agent"] == "linear-sarsa"
         assert config["episodes"] == 1
+        assert config["epsilon_horizon_episodes"] == 8000
         assert episode["seed"] == 0
 
 
@@ -111,3 +116,11 @@ def test_rolling_summary_is_aligned_and_timestamped():
         "clear 0.00  capture 0.99  timeout 0.01  "
         "pellets   2.00  return  -88.3783  abs_delta  8.0139"
     )
+
+
+def test_epsilon_uses_fixed_horizon_not_run_length():
+    at_episode_800 = _epsilon_for_episode(799, 8000, 0.20, 0.02)
+    assert at_episode_800 == 0.20 + 799 / 7999 * (0.02 - 0.20)
+    assert _epsilon_for_episode(799, 8000, 0.20, 0.02) == at_episode_800
+    assert _epsilon_for_episode(0, 8000, 0.20, 0.02) == 0.20
+    assert _epsilon_for_episode(7999, 8000, 0.20, 0.02) == pytest.approx(0.02)

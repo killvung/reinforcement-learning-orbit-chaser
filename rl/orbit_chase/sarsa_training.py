@@ -20,6 +20,7 @@ from .sarsa import FeatureEncoder, LinearSarsaAgent, SarsaConfig
 
 DEFAULT_FINAL_EPSILON = 0.02
 DEFAULT_LOG_EVERY = 100
+DEFAULT_EPSILON_HORIZON_EPISODES = 8_000
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,7 @@ def train_linear_sarsa(
     encoder: FeatureEncoder | None = None,
     seed: int | None = None,
     final_epsilon: float = DEFAULT_FINAL_EPSILON,
+    epsilon_horizon_episodes: int = DEFAULT_EPSILON_HORIZON_EPISODES,
     log: TrainingLog | None = None,
 ) -> TrainingResult:
     """Construct the linear agent and train on explicit episode seeds."""
@@ -82,10 +84,22 @@ def train_linear_sarsa(
         resolved = replace(
             resolved,
             config_record=_linear_config_record(
-                agent, config, seed_list, seed, final_epsilon
+                agent,
+                config,
+                seed_list,
+                seed,
+                final_epsilon,
+                epsilon_horizon_episodes,
             ),
         )
-    return train_agent(agent, seed_list, config.epsilon, final_epsilon, resolved)
+    return train_agent(
+        agent,
+        seed_list,
+        config.epsilon,
+        final_epsilon,
+        resolved,
+        epsilon_horizon_episodes,
+    )
 
 
 def train_agent(
@@ -94,6 +108,7 @@ def train_agent(
     initial_epsilon: float,
     final_epsilon: float,
     log: TrainingLog | None = None,
+    epsilon_horizon_episodes: int = DEFAULT_EPSILON_HORIZON_EPISODES,
 ) -> TrainingResult:
     """On-policy Sarsa control loop over an explicit seed list.
 
@@ -107,6 +122,8 @@ def train_agent(
         raise ValueError("Training requires at least one episode seed.")
     if not 0.0 <= final_epsilon <= initial_epsilon:
         raise ValueError("Final epsilon must lie in [0, initial epsilon].")
+    if epsilon_horizon_episodes < 1:
+        raise ValueError("Epsilon horizon must be a positive episode count.")
 
     settings = log or TrainingLog()
     returns: list[float] = []
@@ -123,7 +140,7 @@ def train_agent(
 
         for episode_index, episode_seed in enumerate(seed_list):
             epsilon = _epsilon_for_episode(
-                episode_index, len(seed_list), initial_epsilon, final_epsilon
+                episode_index, epsilon_horizon_episodes, initial_epsilon, final_epsilon
             )
             record = _run_episode(agent, environment, episode_seed, epsilon)
             returns.append(record["return"])
@@ -252,14 +269,14 @@ def _terminal_outcome(info: dict[str, bool | int]) -> TerminalOutcome:
 
 def _epsilon_for_episode(
     episode_index: int,
-    episode_count: int,
+    horizon_episodes: int,
     initial: float,
     final: float,
 ) -> float:
-    """Linearly decay epsilon across the provided training episode sequence."""
-    if episode_count == 1:
+    """Linearly decay epsilon across a fixed episode horizon, not the run length."""
+    if horizon_episodes <= 1:
         return final
-    fraction = episode_index / (episode_count - 1)
+    fraction = min(1.0, episode_index / (horizon_episodes - 1))
     return initial + fraction * (final - initial)
 
 
@@ -269,6 +286,7 @@ def _linear_config_record(
     seeds: tuple[int, ...],
     agent_seed: int | None,
     final_epsilon: float,
+    epsilon_horizon_episodes: int,
 ) -> dict:
     return {
         "agent": agent.name,
@@ -277,6 +295,7 @@ def _linear_config_record(
         "lambda": config.lambda_,
         "epsilon_initial": config.epsilon,
         "epsilon_final": final_epsilon,
+        "epsilon_horizon_episodes": epsilon_horizon_episodes,
         "feature_capacity": agent.encoder.capacity,
         "tile_bins": agent.encoder.bins,
         "tile_tilings": agent.encoder.tilings,
