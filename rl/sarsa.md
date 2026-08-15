@@ -37,8 +37,8 @@ state["action_mask"]  # int8, shape (8,)
 ```
 
 It chooses only actions with a true mask entry. Training uses masked
-epsilon-greedy selection. Evaluation uses masked greedy selection with the
-same tie break: the lowest action index.
+epsilon-greedy selection and breaks greedy ties uniformly at random.
+Evaluation uses masked greedy selection and the lowest valid action index.
 
 At a terminal transition, the bootstrap value is zero. The agent does not
 sample a next action after capture, clear, or timeout.
@@ -104,6 +104,10 @@ w      = w + alpha * (delta + q - q_old) * e - alpha * (q - q_old) * x
 q_old  = q_next
 ```
 
+`alpha` in that update is the used step `config.alpha / ‖x‖²`, so the
+effective step `α ‖x‖²` equals the configured target (initially 0.1).
+Binary tile features stay 0/1.
+
 Initialize `q_old` to zero after reset. Clear traces after each episode. The
 implementation must unit-test the terminal bootstrap, sparse trace update,
 and one-step equivalence with Sarsa(0) when `lambda = 0`.
@@ -116,8 +120,8 @@ Treat these values as validation-tunable settings, not environment rules:
 | --- | ---: |
 | Gamma per 100 ms decision | 0.995 |
 | Lambda | 0.90 |
-| Alpha | `0.1 / 8` |
-| Epsilon | linearly decay from 0.20 to 0.02 |
+| Alpha | `0.1 / ‖x‖²` (`config.alpha = 0.1`) |
+| Epsilon | linearly decay from 0.20 to 0.02 over 8000 episodes |
 | Hash capacity | `2^18` state features |
 | Tile tilings and bins | 8 and 8 |
 

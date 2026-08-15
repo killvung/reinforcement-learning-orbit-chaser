@@ -181,8 +181,9 @@ Q head on validation seeds before a single final-test evaluation.
 ## Online 5-step Expected Sarsa update
 
 At each decision, sample `a_t` from the masked epsilon-greedy policy based on
-`Q_theta(s_t)`. Epsilon decays from 0.20 to 0.02 during training. The lowest
-valid action index breaks greedy ties. For a nonterminal bootstrap state,
+`Q_theta(s_t)`. Epsilon decays from 0.20 to 0.02 during training. Training
+randomizes among tied greedy actions; evaluation uses the lowest valid
+action index. For a nonterminal bootstrap state,
 construct the same masked epsilon-greedy distribution `pi_theta(a | s)` and
 compute:
 
@@ -211,8 +212,8 @@ Before training, test these properties:
 
 1. Permuting pellet, Orb, or bar order leaves Q-values unchanged.
 2. An all-inactive pellet or Orb set produces finite Q-values and no NaNs.
-3. Masked epsilon-greedy samples no invalid action and uses uniform exploration
-   over valid actions.
+3. Masked epsilon-greedy samples no invalid action, uses uniform exploration
+   over valid actions, and randomizes training greedy ties.
 4. Terminal capture, clear, and timeout targets omit the bootstrap term.
 5. A hand-computed five-step sequence matches the queued update target.
 6. The forward pass produces shape `(batch, 8)` and preserves `Direction`

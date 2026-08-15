@@ -49,9 +49,10 @@ the associated active flag changes after collection.
 
 The eight-element action mask is returned alongside, not inside, this vector.
 It uses the same direction order as the enemy-heading one-hot vector. A value
-of `true` means the player can complete that direction's next 100 ms swept
-path without hitting the boundary, core, or a bar. Fixed-tick collision checks
-remain authoritative if a caller selects an invalid action.
+of `true` means the player can complete that direction's next 100 ms path
+without hitting the boundary, core, or a bar, including Surge expiry and Orb
+pickups during the interval. Fixed-tick collision checks remain authoritative
+if a caller selects an invalid action.
 
 ## Non-learning baselines
 
@@ -114,28 +115,18 @@ checkpoint evals write timestamped JSON next to that file.
 `--verbose` prints one JSON object per episode to stderr. `--log-every 100`
 prints a timestamped cumulative summary. `--log path.jsonl` writes the config
 and those episode records to disk. `--lambda` and `--alpha` override the
-documented initial settings (`0.90` and `0.1 / 8`).
+documented initial settings (`0.90` and effective step `0.1`). Epsilon decays
+from 0.20 to 0.02 over `--epsilon-horizon-episodes` (default 8000), not the
+requested `--episodes` count.
 
-The first λ=0.90 pass on seeds `0–7999` stalled: 0 clears by episode 1600,
-mean pellets near 3.1, and rising mean |δ|. The next linear candidate changes
-only lambda. Halt if clears stay 0 and |δ| keeps climbing:
-
-```bash
-PYTHONPATH=rl .venv/bin/python rl/train_sarsa.py --episodes 800 --seed-start 0 \
-  --agent-seed 73 --lambda 0.5 --log rl/models/linear-sarsa-lambda05-train.jsonl
-```
-
-Then greedy-eval the latest checkpoint on validation seeds, not final-test:
+Run the Python tests with:
 
 ```bash
-PYTHONPATH=rl .venv/bin/python rl/evaluate_baselines.py \
-  --checkpoint rl/models/linear-sarsa-TIMESTAMP.npz \
-  --start-seed 8000 --episodes 50
+npm run test:python
 ```
 
-Use `--episodes 8000 --seed-start 0` only for a candidate that already shows
-clears or contracting |δ| on a short diagnostic. Tune on validation seeds
-before running final-test seeds.
+or `PYTHONPATH=rl .venv/bin/python -m pytest`. Do not reuse checkpoints from
+before the step-size, tie-break, epsilon-horizon, and Surge-mask fixes.
 
 [`sarsa.md`](sarsa.md) defines the linear feature map, true-online update, and
 validation gate. [`neural-sarsa.md`](neural-sarsa.md) defines the separate
