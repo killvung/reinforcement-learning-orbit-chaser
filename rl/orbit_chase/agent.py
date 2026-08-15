@@ -31,9 +31,10 @@ class Agent(ABC):
 
     Subclasses estimate unmasked `Q(s, ·)` in `Direction` order. This base
     class applies the Gym action mask only during selection: greedy choice
-    looks at valid actions only, and exploration samples uniformly among them.
-    A later neural Expected-Sarsa agent implements the same `q_values` /
-    `update` / `reset_episode` surface.
+    looks at valid actions only, exploration samples uniformly among them,
+    and training randomizes greedy ties. Evaluation (`choose`) keeps the
+    lowest valid index. A later neural Expected-Sarsa agent implements the
+    same `q_values` / `update` / `reset_episode` surface.
     """
 
     name: str
@@ -57,20 +58,28 @@ class Agent(ABC):
         return {}
 
     def select_action(self, state: dict[str, np.ndarray], epsilon: float) -> int:
-        """Masked epsilon-greedy. Lowest valid index wins greedy ties.
+        """Masked epsilon-greedy. Training randomizes among tied greedy actions.
 
         With probability epsilon, sample uniformly from valid actions. Otherwise
-        pick argmax Q(s, a) among valid a. This is the behaviour policy for
-        on-policy Sarsa.
+        pick argmax Q(s, a) among valid a, breaking ties uniformly. This is the
+        behaviour policy for on-policy Sarsa.
         """
-        return self._select_from_q(self.q_values(state), state["action_mask"], epsilon)
+        return self._select_from_q(
+            self.q_values(state), state["action_mask"], epsilon, randomize_ties=True
+        )
 
     def choose(self, state: dict[str, np.ndarray], _rng: np.random.Generator) -> int:
         """Greedy masked action for held-out evaluation (`PlayerPolicy`)."""
-        return self.select_action(state, epsilon=0.0)
+        return self._select_from_q(
+            self.q_values(state), state["action_mask"], epsilon=0.0, randomize_ties=False
+        )
 
     def _select_from_q(
-        self, values: np.ndarray, action_mask: np.ndarray, epsilon: float
+        self,
+        values: np.ndarray,
+        action_mask: np.ndarray,
+        epsilon: float,
+        randomize_ties: bool = False,
     ) -> int:
         mask = np.asarray(action_mask, dtype=np.int8)
         if mask.shape != (ACTION_COUNT,):
@@ -85,4 +94,7 @@ class Agent(ABC):
         if epsilon > 0.0 and self.rng.random() < epsilon:
             return int(self.rng.choice(valid))
         best_value = np.max(values[valid])
-        return int(valid[np.flatnonzero(values[valid] == best_value)[0]])
+        tied = valid[np.flatnonzero(values[valid] == best_value)]
+        if randomize_ties and len(tied) > 1:
+            return int(self.rng.choice(tied))
+        return int(tied[0])

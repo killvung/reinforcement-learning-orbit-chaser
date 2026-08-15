@@ -253,7 +253,7 @@ def _closest_point(start: np.ndarray, end: np.ndarray, point: np.ndarray) -> np.
 class SarsaConfig:
     """Validation-tunable settings for one linear True Online Sarsa run."""
 
-    alpha: float = 0.1 / TILE_TILINGS
+    alpha: float = 0.1
     gamma: float = 0.995
     lambda_: float = 0.90
     epsilon: float = 0.20
@@ -351,13 +351,16 @@ class LinearSarsaAgent(Agent):
         w      = w + alpha * (delta + q - q_old) * e - alpha * (q - q_old) * x
         q_old  = q_next
 
-        `e · x` uses the trace from the previous step, before decay.
+        `alpha` here is the used step `config.alpha / ||x||^2`, so the effective
+        step `α ‖x‖²` equals the configured target. `e · x` uses the trace from
+        the previous step, before decay.
         """
         _validate_action(action)
         q = self.q_value(features, action)
         delta, q_next = self._td_error(q, reward, next_features, next_action, terminal)
-        self._accumulate_true_online_traces(features, action)
-        self._apply_weight_update(features, action, delta, q)
+        step_size = self._step_size(features)
+        self._accumulate_true_online_traces(features, action, step_size)
+        self._apply_weight_update(features, action, delta, q, step_size)
         self.q_old = q_next
         return delta
 
@@ -378,29 +381,38 @@ class LinearSarsaAgent(Agent):
             q_next = self.q_value(next_features, next_action)
         return float(reward) + self.config.gamma * q_next - q, q_next
 
-    def _accumulate_true_online_traces(self, features: SparseFeatures, action: int) -> None:
+    def _step_size(self, features: SparseFeatures) -> float:
+        """Return `config.alpha / ‖x‖²` so the effective step is `config.alpha`."""
+        norm_squared = float(np.dot(features.values, features.values))
+        return self.config.alpha / max(norm_squared, 1e-12)
+
+    def _accumulate_true_online_traces(
+        self, features: SparseFeatures, action: int, step_size: float
+    ) -> None:
         """Replace traces: `e <- γλ e + (1 - αγλ (e_{t-1} · x)) x`."""
         trace_dot_x = sum(
             self.traces.get((action, int(index)), 0.0) * value
             for index, value in zip(features.indices, features.values)
         )
         self._decay_traces()
-        correction = (
-            1.0
-            - self.config.alpha * self.config.gamma * self.config.lambda_ * trace_dot_x
-        )
+        correction = 1.0 - step_size * self.config.gamma * self.config.lambda_ * trace_dot_x
         for index, value in zip(features.indices, features.values):
             key = (action, int(index))
             self.traces[key] = self.traces.get(key, 0.0) + correction * float(value)
 
     def _apply_weight_update(
-        self, features: SparseFeatures, action: int, delta: float, q: float
+        self,
+        features: SparseFeatures,
+        action: int,
+        delta: float,
+        q: float,
+        step_size: float,
     ) -> None:
         """`w <- w + α (δ + q - q_old) e - α (q - q_old) x`."""
-        trace_scale = self.config.alpha * (delta + q - self.q_old)
+        trace_scale = step_size * (delta + q - self.q_old)
         for (trace_action, index), trace_value in self.traces.items():
             self.weights[trace_action, index] += trace_scale * trace_value
-        current_scale = self.config.alpha * (q - self.q_old)
+        current_scale = step_size * (q - self.q_old)
         for index, value in zip(features.indices, features.values):
             self.weights[action, int(index)] -= current_scale * float(value)
 

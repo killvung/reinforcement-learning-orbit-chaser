@@ -97,18 +97,36 @@ def test_feature_group_salts_are_unique():
     assert pellet != orb
 
 
-def test_masked_greedy_uses_lowest_valid_tie_break_and_exploration_stays_valid():
+def test_evaluation_greedy_uses_lowest_valid_tie_break():
     agent = LinearSarsaAgent(FeatureEncoder(capacity=32), SarsaConfig(epsilon=0.0), seed=73)
     values = np.zeros(ACTION_COUNT)
     values[2] = 4.0
     values[3] = 4.0
     mask = np.array([0, 0, 1, 1, 0, 0, 0, 0], dtype=np.int8)
 
-    assert agent._select_from_q(values, mask, epsilon=0.0) == 2
+    assert agent._select_from_q(values, mask, epsilon=0.0, randomize_ties=False) == 2
 
+
+def test_training_select_randomizes_greedy_ties():
+    agent = LinearSarsaAgent(FeatureEncoder(capacity=32), SarsaConfig(epsilon=0.0), seed=73)
+    values = np.zeros(ACTION_COUNT)
+    mask = np.ones(ACTION_COUNT, dtype=np.int8)
+
+    chosen = {
+        agent._select_from_q(values, mask, epsilon=0.0, randomize_ties=True)
+        for _ in range(400)
+    }
+    assert chosen == set(range(ACTION_COUNT))
+
+
+def test_exploration_samples_only_valid_actions():
     exploratory = LinearSarsaAgent(
         FeatureEncoder(capacity=32), SarsaConfig(epsilon=1.0), seed=73
     )
+    values = np.zeros(ACTION_COUNT)
+    values[2] = 4.0
+    values[3] = 4.0
+    mask = np.array([0, 0, 1, 1, 0, 0, 0, 0], dtype=np.int8)
     assert {exploratory._select_from_q(values, mask, epsilon=1.0) for _ in range(40)} <= {
         2,
         3,
@@ -140,9 +158,9 @@ def test_true_online_update_matches_hand_computed_first_transition():
 
     agent.update_features(features, action=3, reward=4.0, terminal=True)
 
-    assert agent.q_value(features, 3) == 2.0
-    assert agent.weights[3, 2] == 1.0
-    assert agent.weights[3, 7] == 1.0
+    assert agent.q_value(features, 3) == 1.0
+    assert agent.weights[3, 2] == 0.5
+    assert agent.weights[3, 7] == 0.5
     assert agent.q_old == 0.0
 
 
@@ -159,7 +177,7 @@ def test_lambda_zero_matches_one_step_sarsa_update():
 
     agent.update_features(first, action=3, reward=2.0, next_features=second, next_action=4)
 
-    # delta = 2 + 0.9 * 6 - 0 = 7.4; with lambda = 0, w += alpha * delta * x.
+    # delta = 2 + 0.9 * 6 - 0 = 7.4; with lambda = 0, w += (alpha / ||x||^2) * delta * x.
     assert agent.weights[3, 1] == 3.7
     assert agent.q_old == 6.0
 
@@ -194,6 +212,57 @@ def test_terminal_update_does_not_read_a_next_action_value():
 
     assert agent.q_old == 0.0
     assert agent.weights[3, 1] == 51.0
+
+
+def test_effective_alpha_prevents_terminal_overshoot():
+    n_active = 128
+    features = SparseFeatures(
+        indices=np.arange(n_active, dtype=np.int32),
+        values=np.ones(n_active, dtype=np.float64),
+    )
+    agent = LinearSarsaAgent(
+        FeatureEncoder(capacity=256),
+        SarsaConfig(alpha=0.1, gamma=0.995, lambda_=0.9),
+        seed=73,
+    )
+
+    agent.update_features(features, action=0, reward=-100.0, terminal=True)
+
+    q = agent.q_value(features, 0)
+    step_size = agent._step_size(features)
+    assert abs(q) < 100.0
+    assert np.isclose(step_size * n_active, agent.config.alpha)
+    assert np.isclose(q, -10.0)
+
+
+def test_normalized_alpha_keeps_dutch_correction_positive_on_repeats():
+    n_active = 128
+    features = SparseFeatures(
+        indices=np.arange(n_active, dtype=np.int32),
+        values=np.ones(n_active, dtype=np.float64),
+    )
+    agent = LinearSarsaAgent(
+        FeatureEncoder(capacity=256),
+        SarsaConfig(alpha=0.1, gamma=0.995, lambda_=0.9),
+        seed=73,
+    )
+    agent.update_features(features, action=0, reward=-100.0, terminal=True)
+
+    trace_dot_x = sum(
+        agent.traces.get((0, int(index)), 0.0) * value
+        for index, value in zip(features.indices, features.values)
+    )
+    correction = (
+        1.0
+        - agent._step_size(features)
+        * agent.config.gamma
+        * agent.config.lambda_
+        * trace_dot_x
+    )
+    assert correction > 0.0
+
+    agent.update_features(features, action=0, reward=0.0, terminal=True)
+    assert all(value > 0.0 for value in agent.traces.values())
 
 
 def test_gym_transition_update_encodes_state():
