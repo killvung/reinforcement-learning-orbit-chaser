@@ -10,4 +10,4 @@ __pycache__/
 .ruff_cache/
 .DS_Store
 *.pt
-rl/models/sarsa-benchmark/
+rl/models/
