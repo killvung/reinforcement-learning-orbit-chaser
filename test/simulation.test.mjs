@@ -36,3 +36,13 @@ test('player observation has stable shape and detects an immediately blocked dir
   assert.equal(nearWall[2], false, 'right is blocked by the arena boundary');
   assert.equal(nearWall.some(Boolean), true, 'the mask retains at least one safe direction');
 });
+
+test('action mask uses remaining Surge duration instead of a constant 100 ms', () => {
+  const simulation = new GameSimulation(211);
+  simulation.player.x = simulation.arena.center.x + simulation.arena.radius - simulation.player.radius - 20;
+  simulation.player.y = simulation.arena.center.y;
+  simulation.surgeRemaining = 0.02;
+  assert.equal(simulation.observe().actionMask[2], true, 'right remains safe after Surge expires mid-interval');
+  simulation.surgeRemaining = 1;
+  assert.equal(simulation.observe().actionMask[2], false, 'right is blocked for a full 100 ms of Surge');
+});

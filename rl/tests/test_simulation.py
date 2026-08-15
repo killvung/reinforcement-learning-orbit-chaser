@@ -1,6 +1,6 @@
 import math
 
-from orbit_chase.arena import Arena
+from orbit_chase.arena import Arena, Collectible
 from orbit_chase.rules import (
     ARENA_CENTER,
     ARENA_RADIUS,
@@ -217,3 +217,39 @@ def test_surge_speed_can_turn_a_safe_path_into_a_masked_path():
     assert simulation.valid_actions()[Direction.RIGHT] is True
     simulation.surge_remaining = 1.0
     assert simulation.valid_actions()[Direction.RIGHT] is False
+
+
+def test_expiring_surge_does_not_mask_a_base_speed_safe_path():
+    simulation = GameSimulation(73)
+    gap = 20.0
+    start_x = ARENA_CENTER[0] + ARENA_RADIUS - simulation.player.radius - gap
+    simulation.player.x, simulation.player.y = start_x, ARENA_CENTER[1]
+    simulation.surge_remaining = 0.02
+
+    assert simulation.valid_actions()[Direction.RIGHT] is True
+    assert simulation.player.x == start_x
+    assert simulation.surge_remaining == 0.02
+
+
+def test_orb_pickup_can_invalidate_a_path_that_is_safe_at_base_speed():
+    simulation = GameSimulation(73)
+    gap = 20.0
+    start_x = ARENA_CENTER[0] + ARENA_RADIUS - simulation.player.radius - gap
+    simulation.player.x, simulation.player.y = start_x, ARENA_CENTER[1]
+    simulation.surge_remaining = 0.0
+    assert simulation.valid_actions()[Direction.RIGHT] is True
+
+    simulation.arena = Arena(
+        bars=simulation.arena.bars,
+        pellet_slots=simulation.arena.pellet_slots,
+        orb_slots=(
+            Collectible((start_x + 1.0, ARENA_CENTER[1])),
+            Collectible((0.0, 0.0)),
+            Collectible((1.0, 0.0)),
+        ),
+    )
+    simulation.orb_active = [True, False, False]
+    assert simulation.valid_actions()[Direction.RIGHT] is False
+    assert simulation.player.x == start_x
+    assert simulation.surge_remaining == 0.0
+    assert simulation.orb_active == [True, False, False]

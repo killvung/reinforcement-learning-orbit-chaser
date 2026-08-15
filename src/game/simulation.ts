@@ -155,8 +155,33 @@ export class GameSimulation {
 
   /** Actions safe for the player's next 100 ms decision interval. */
   validActions(): boolean[] {
-    const multiplier = this.surgeRemaining > 0 ? 1.32 : 1;
-    return actionOrder.map((direction) => this.canTravel(this.player, directions[direction], PLAYER_DECISION_INTERVAL, multiplier));
+    return actionOrder.map((direction) => this.canCompletePlayerDecision(directions[direction]));
+  }
+
+  /** Dry-run ten ticks of player motion with mid-interval Surge expiry and Orb pickups. */
+  private canCompletePlayerDecision(input: Point): boolean {
+    const player: Actor = { x: this.player.x, y: this.player.y, radius: this.player.radius, speed: this.player.speed };
+    let surge = this.surgeRemaining;
+    const orbs = this.orbSlots.map((slot) => slot.active);
+    const ticks = Math.round(PLAYER_DECISION_INTERVAL / FIXED_TIMESTEP);
+    for (let tick = 0; tick < ticks; tick += 1) {
+      surge = Math.max(0, surge - FIXED_TIMESTEP);
+      const multiplier = surge > 0 ? 1.32 : 1;
+      if (!this.canTravel(player, input, FIXED_TIMESTEP, multiplier)) return false;
+      const length = Math.hypot(input.x, input.y);
+      if (length > 0) {
+        const travel = player.speed * multiplier * FIXED_TIMESTEP;
+        player.x += input.x / length * travel;
+        player.y += input.y / length * travel;
+      }
+      for (let index = 0; index < this.orbSlots.length; index += 1) {
+        if (orbs[index] && Math.hypot(this.orbSlots[index].point.x - player.x, this.orbSlots[index].point.y - player.y) <= 22) {
+          orbs[index] = false;
+          surge = 4;
+        }
+      }
+    }
+    return true;
   }
 
   private mergeResult(target: StepResult, next: StepResult): void {

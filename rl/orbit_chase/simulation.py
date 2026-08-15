@@ -91,19 +91,39 @@ class GameSimulation:
         return self._step_events(pellets_collected, orbs_collected)
 
     def valid_actions(self) -> list[bool]:
-        """Return collision-safe player directions for the next 100 ms decision."""
-        speed_multiplier = (
-            PLAYER_SURGE_SPEED_MULTIPLIER if self.surge_remaining > 0 else 1.0
-        )
+        """Return collision-safe player directions for the next 100 ms decision.
+
+        The mask follows the same 10 ms Surge clock and Orb pickups as `step`,
+        without mutating live player, Surge, or orb state.
+        """
         return [
-            self._can_travel(
-                self.player,
-                direction,
-                PLAYER_DECISION_SECONDS,
-                speed_multiplier,
-            )
-            for direction in Direction
+            self._can_complete_player_decision(direction) for direction in Direction
         ]
+
+    def _can_complete_player_decision(self, direction: Direction) -> bool:
+        """Dry-run ten ticks of player motion with mid-interval Surge changes."""
+        player = Actor(
+            self.player.x, self.player.y, self.player.radius, self.player.speed
+        )
+        surge = self.surge_remaining
+        orbs = list(self.orb_active)
+        ticks = round(PLAYER_DECISION_SECONDS / PHYSICS_DT_SECONDS)
+        for _ in range(ticks):
+            surge = max(0.0, surge - PHYSICS_DT_SECONDS)
+            multiplier = PLAYER_SURGE_SPEED_MULTIPLIER if surge > 0 else 1.0
+            if not self._can_travel(player, direction, PHYSICS_DT_SECONDS, multiplier):
+                return False
+            dx, dy = DIRECTION_UNITS[direction]
+            travel = player.speed * multiplier * PHYSICS_DT_SECONDS
+            player.x += dx * travel
+            player.y += dy * travel
+            for index, slot in enumerate(self.arena.orb_slots):
+                if orbs[index] and distance((player.x, player.y), slot.position) <= (
+                    ORB_COLLECTION_RADIUS
+                ):
+                    orbs[index] = False
+                    surge = SURGE_DURATION_SECONDS
+        return True
 
     def _advance_surge_clock(self) -> bool:
         """Expire Surge before movement, matching the browser simulation."""
