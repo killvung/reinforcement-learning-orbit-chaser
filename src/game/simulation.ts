@@ -17,6 +17,7 @@ export type CollectibleSlot = { point: Point; active: boolean };
 export type StepResult = { captured: boolean; cleared: boolean; timedOut: boolean; pelletsCollected: Point[]; powerCollected: Point[] };
 export type EnemyDebugState = Record<string, string | number | boolean>;
 export interface EnemyController { readonly name: string; selectAction(simulation: GameSimulation): Direction; getDebugState?(): EnemyDebugState; }
+export interface PlayerController { readonly name: string; selectAction(simulation: GameSimulation): Direction; }
 
 /** Exact, fixed-order input supplied to the player policy. */
 export type PlayerObservation = { features: number[]; actionMask: boolean[] };
@@ -43,9 +44,12 @@ export class GameSimulation {
   comboRemaining = 0;
   surgeRemaining = 0;
   enemyDirection: Direction = 'left';
+  playerDirection: Direction = 'up';
   private enemyDecisionRemaining = 0;
+  private playerDecisionTicksRemaining = 0;
   private elapsedAccumulator = 0;
   private enemyController: EnemyController | null = null;
+  private playerController: PlayerController | null = null;
 
   constructor(seed = Date.now()) {
     this.arena = makeArena(seed);
@@ -61,7 +65,9 @@ export class GameSimulation {
     this.player = { x: center.x - 165, y: center.y + 85, radius: 12, speed: 175 };
     this.enemy = { x: center.x + 165, y: center.y - 85, radius: 13, speed: 110 };
     this.enemyDirection = 'left';
+    this.playerDirection = 'up';
     this.enemyDecisionRemaining = 0;
+    this.playerDecisionTicksRemaining = 0;
     this.elapsedAccumulator = 0;
     this.timeRemaining = 60;
     this.pellets = []; this.powerOrbs = []; this.pelletSlots = []; this.orbSlots = [];
@@ -87,7 +93,12 @@ export class GameSimulation {
   }
 
   setEnemyController(controller: EnemyController | null): void { this.enemyController = controller; }
+  setPlayerController(controller: PlayerController | null): void {
+    this.playerController = controller;
+    this.playerDecisionTicksRemaining = 0;
+  }
   get enemyControllerName(): string { return this.enemyController?.name ?? 'Greedy'; }
+  get playerControllerName(): string { return this.playerController?.name ?? 'Human'; }
   get enemyDebugState(): EnemyDebugState { return this.enemyController?.getDebugState?.() ?? { Navigation: 'Built-in greedy pursuit' }; }
   get enemyDecisionFraction(): number { return Math.max(0, this.enemyDecisionRemaining) / ENEMY_DECISION_INTERVAL; }
 
@@ -109,8 +120,17 @@ export class GameSimulation {
     if (this.comboRemaining === 0) this.multiplier = 1;
     this.surgeRemaining = Math.max(0, this.surgeRemaining - dt);
     const playerMultiplier = this.surgeRemaining > 0 ? 1.32 : 1;
-    this.move(this.player, playerInput, dt, playerMultiplier);
-    this.playerVelocity = this.velocityFor(playerInput, this.player.speed * playerMultiplier);
+    let movement = playerInput;
+    if (this.playerController !== null) {
+      if (this.playerDecisionTicksRemaining <= 0) {
+        this.playerDirection = this.playerController.selectAction(this);
+        this.playerDecisionTicksRemaining = Math.round(PLAYER_DECISION_INTERVAL / FIXED_TIMESTEP);
+      }
+      movement = directions[this.playerDirection];
+    }
+    this.move(this.player, movement, dt, playerMultiplier);
+    this.playerVelocity = this.velocityFor(movement, this.player.speed * playerMultiplier);
+    if (this.playerController !== null) this.playerDecisionTicksRemaining -= 1;
 
     if (this.enemyDecisionRemaining <= 0) {
       this.enemyDirection = this.enemyController?.selectAction(this) ?? this.chooseBaselineAction();

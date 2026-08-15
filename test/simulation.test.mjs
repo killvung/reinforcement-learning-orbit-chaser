@@ -46,3 +46,39 @@ test('action mask uses remaining Surge duration instead of a constant 100 ms', (
   simulation.surgeRemaining = 1;
   assert.equal(simulation.observe().actionMask[2], false, 'right is blocked for a full 100 ms of Surge');
 });
+
+test('player controller is consulted once per 100 ms and held for ten physics ticks', () => {
+  const simulation = new GameSimulation(73);
+  const calls = [];
+  const start = { x: simulation.player.x, y: simulation.player.y };
+  let tick = 0;
+  simulation.setPlayerController({
+    name: 'counter',
+    selectAction() {
+      calls.push(tick);
+      return 'right';
+    },
+  });
+  const xs = [];
+  for (; tick < 30; tick += 1) {
+    simulation.stepFixed({ x: 0, y: 1 });
+    xs.push(simulation.player.x);
+  }
+  assert.deepEqual(calls, [0, 10, 20]);
+  assert.equal(simulation.playerDirection, 'right');
+  assert.ok(simulation.player.x > start.x, 'held action moves right');
+  assert.equal(simulation.player.y, start.y, 'human down input is ignored while the controller is active');
+  for (let index = 0; index < 10; index += 1) {
+    const previous = index === 0 ? start.x : xs[index - 1];
+    assert.ok(xs[index] > previous);
+  }
+});
+
+test('human analog input is unchanged when no player controller is set', () => {
+  const simulation = new GameSimulation(73);
+  const start = { x: simulation.player.x, y: simulation.player.y };
+  simulation.stepFixed({ x: 0, y: 1 });
+  assert.equal(simulation.player.x, start.x);
+  assert.ok(simulation.player.y > start.y);
+  assert.equal(simulation.playerControllerName, 'Human');
+});

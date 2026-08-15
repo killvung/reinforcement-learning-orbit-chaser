@@ -3,6 +3,9 @@ import { GameSimulation, directions } from './simulation.js';
 import { Point } from './arena.js';
 import { ArcadeAudio } from './audio.js';
 import { updateDebugPanel } from '../debugPanel.js';
+import { SarsaPlayerController } from './SarsaPlayerController.js';
+
+const TRAINED_PLAYER_URL = '/models/linear-sarsa-20260815-030554-ep8000.json';
 
 const palette = { background: 0x071426, arena: 0x0b2941, outline: 0x84dcff, wall: 0x2b86bb, wallEdge: 0x82dcff, pellet: 0xf5dc83, player: 0xffda45, enemy: 0xfa637d };
 type TrailDot = Point & { radius: number; alpha: number; color: number };
@@ -23,6 +26,8 @@ export class PlayScene extends Phaser.Scene {
   private sparks: Spark[] = [];
   private audio = new ArcadeAudio();
   private nextDangerSound = 0;
+  private trainedPlayer: SarsaPlayerController | null = null;
+  private trainedEnabled = false;
 
   constructor() { super('play'); }
 
@@ -37,7 +42,9 @@ export class PlayScene extends Phaser.Scene {
     this.input.keyboard!.on('keydown', () => this.audio.unlock());
     this.input.keyboard!.addKey('R').on('down', () => this.restart());
     this.createTouchPad();
+    this.bindPlayerToggle();
     this.restart();
+    void this.loadTrainedPlayer();
   }
 
   update(_: number, delta: number): void {
@@ -108,7 +115,7 @@ export class PlayScene extends Phaser.Scene {
     actors.lineStyle(2, 0xfff0a9).strokeCircle(player.x, player.y, player.radius);
     actors.fillStyle(palette.enemy).fillCircle(enemy.x, enemy.y, enemy.radius);
     actors.lineStyle(2, 0xffb2be).strokeCircle(enemy.x, enemy.y, enemy.radius);
-    this.hud.setText(`Score ${score.toString().padStart(4, '0')}   •   Pellets ${pellets.length}   •   Time ${Math.max(0, Math.ceil(timeRemaining))}   •   Enemy ${this.simulation.enemyControllerName}`);
+    this.hud.setText(`Score ${score.toString().padStart(4, '0')}   •   Pellets ${pellets.length}   •   Time ${Math.max(0, Math.ceil(timeRemaining))}   •   Player ${this.trainedEnabled ? 'Trained' : 'Human'}   •   Enemy ${this.simulation.enemyControllerName}`);
     if (surgeRemaining > 0) this.status.setText(`SURGE ×${multiplier} · ${surgeRemaining.toFixed(1)}s`);
     else if (comboRemaining > 0 && multiplier > 1) this.status.setText(`STREAK ×${multiplier} · ${comboRemaining.toFixed(1)}s`);
     else if (Math.hypot(player.x - enemy.x, player.y - enemy.y) < 105) this.status.setText('DANGER ZONE');
@@ -133,6 +140,28 @@ export class PlayScene extends Phaser.Scene {
     restart.on('pointerdown', () => this.restart());
     const sound = this.add.text(165, 584, 'Sound: On', { fontFamily: 'system-ui', fontSize: '17px', color: '#e8f5ff', backgroundColor: '#173a55', padding: { x: 12, y: 7 } }).setInteractive({ useHandCursor: true });
     sound.on('pointerdown', () => { this.audio.unlock(); this.audio.enabled = !this.audio.enabled; sound.setText(`Sound: ${this.audio.enabled ? 'On' : 'Off'}`); });
+  }
+
+  private bindPlayerToggle(): void {
+    document.getElementById('player-toggle')?.addEventListener('click', () => this.toggleTrainedPlayer());
+  }
+
+  private async loadTrainedPlayer(): Promise<void> {
+    try {
+      this.trainedPlayer = await SarsaPlayerController.load(TRAINED_PLAYER_URL);
+      const toggle = document.getElementById('player-toggle');
+      if (toggle instanceof HTMLButtonElement) toggle.disabled = false;
+    } catch (error) {
+      console.error('Could not load the trained player.', error);
+    }
+  }
+
+  private toggleTrainedPlayer(): void {
+    if (this.trainedPlayer === null) return;
+    this.trainedEnabled = !this.trainedEnabled;
+    this.simulation.setPlayerController(this.trainedEnabled ? this.trainedPlayer : null);
+    const toggle = document.getElementById('player-toggle');
+    if (toggle) toggle.textContent = this.trainedEnabled ? 'Player: Trained' : 'Player: Human';
   }
 
   private burst(point: Point, color: number, amount: number): void {

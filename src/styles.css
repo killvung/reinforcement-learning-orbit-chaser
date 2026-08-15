@@ -4,9 +4,10 @@ body { min-width: 320px; min-height: 100vh; margin: 0; display: grid; place-item
 main { width: min(100vw, 1180px); padding: 16px; }
 .app-shell { display: flex; align-items: flex-start; justify-content: center; gap: 14px; }
 .game-column { width: min(100%, 800px); }
-.game-toolbar { display: flex; justify-content: flex-end; margin: 0 0 8px; }
+.game-toolbar { display: flex; justify-content: flex-end; gap: 8px; margin: 0 0 8px; }
 .game-toolbar button { border: 1px solid #447b9b; border-radius: 7px; background: #173a55; color: #e8f5ff; cursor: pointer; font: inherit; font-size: 14px; padding: 7px 10px; }
 .game-toolbar button:hover { background: #214d6d; }
+.game-toolbar button:disabled { opacity: 0.55; cursor: default; }
 #game { overflow: hidden; border: 1px solid #2d607e; border-radius: 14px; box-shadow: 0 20px 70px #0008; }
 canvas { display: block; width: 100% !important; height: auto !important; }
 #debug-panel { width: 300px; max-height: 640px; overflow: auto; border: 1px solid #2d607e; border-radius: 14px; background: #0a1c2d; box-shadow: 0 20px 70px #0008; padding: 16px; }

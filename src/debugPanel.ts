@@ -24,7 +24,9 @@ export function updateDebugPanel(simulation: GameSimulation): void {
   const debug = simulation.enemyDebugState;
   const distance = Math.hypot(simulation.player.x - simulation.enemy.x, simulation.player.y - simulation.enemy.y);
   const fields = [
-    ['Controller', simulation.enemyControllerName],
+    ['Player', simulation.playerControllerName],
+    ['Player direction', simulation.playerDirection],
+    ['Enemy controller', simulation.enemyControllerName],
     ['Time remaining', `${Math.max(0, simulation.timeRemaining).toFixed(2)} s`],
     ['Direct distance', `${distance.toFixed(1)} px`],
     ['Player position', point(simulation.player.x, simulation.player.y)],

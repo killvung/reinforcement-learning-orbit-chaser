@@ -9,12 +9,24 @@ from typing import Any
 
 import numpy as np
 
-from .rules import ACTION_COUNT
+from .rules import ACTION_COUNT, OBSERVATION_SIZE
 from .sarsa import FeatureEncoder, LinearSarsaAgent, SarsaConfig
 
 
 LINEAR_SARSA_FORMAT = "orbit-chase-linear-sarsa-v1"
+BROWSER_LINEAR_SARSA_FORMAT = "orbit-chase-linear-sarsa-browser-v1"
+BROWSER_ACTION_ORDER: tuple[str, ...] = (
+    "up",
+    "up-right",
+    "right",
+    "down-right",
+    "down",
+    "down-left",
+    "left",
+    "up-left",
+)
 DEFAULT_ARTIFACT_DIR = Path("rl/models")
+DEFAULT_BROWSER_ARTIFACT_DIR = Path("public/models")
 
 
 def local_timestamp() -> str:
@@ -91,6 +103,64 @@ def load_linear_sarsa(path: str | Path) -> LinearSarsaAgent:
         )
     agent.weights[:, :] = weights
     return agent
+
+
+def browser_artifact_from_agent(
+    agent: LinearSarsaAgent,
+    checkpoint: str,
+) -> dict[str, Any]:
+    """Build the sparse browser JSON document for one loaded agent."""
+    if OBSERVATION_SIZE != 130:
+        raise ValueError(
+            f"Browser export requires observation_size 130, got {OBSERVATION_SIZE}."
+        )
+    if ACTION_COUNT != len(BROWSER_ACTION_ORDER):
+        raise ValueError(
+            f"Browser export requires {len(BROWSER_ACTION_ORDER)} actions, got {ACTION_COUNT}."
+        )
+    if agent.weights.shape != (ACTION_COUNT, agent.encoder.capacity):
+        raise ValueError(
+            f"Checkpoint weight shape {agent.weights.shape} does not match "
+            f"({ACTION_COUNT}, {agent.encoder.capacity})."
+        )
+    if not np.isfinite(agent.weights).all():
+        raise ValueError("Checkpoint weights must be finite.")
+    rows = []
+    for action in range(ACTION_COUNT):
+        indices = np.flatnonzero(agent.weights[action])
+        rows.append(
+            {
+                "indices": indices.astype(int).tolist(),
+                "values": agent.weights[action, indices].tolist(),
+            }
+        )
+    return {
+        "format": BROWSER_LINEAR_SARSA_FORMAT,
+        "source_format": LINEAR_SARSA_FORMAT,
+        "checkpoint": checkpoint,
+        "observation_size": OBSERVATION_SIZE,
+        "action_order": list(BROWSER_ACTION_ORDER),
+        "encoder": {
+            "capacity": int(agent.encoder.capacity),
+            "bins": int(agent.encoder.bins),
+            "tilings": int(agent.encoder.tilings),
+        },
+        "weights": rows,
+    }
+
+
+def export_linear_sarsa_browser(
+    checkpoint_path: str | Path,
+    destination: str | Path,
+) -> Path:
+    """Load a v1 `.npz` checkpoint and write a compact sparse browser artifact."""
+    path = Path(checkpoint_path)
+    agent = load_linear_sarsa(path)
+    artifact = browser_artifact_from_agent(agent, path.name)
+    output = Path(destination)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(artifact, separators=(",", ":")), encoding="utf-8")
+    return output
 
 
 def write_json_artifact(
