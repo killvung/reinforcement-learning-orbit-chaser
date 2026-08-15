@@ -1,9 +1,11 @@
+import evaluate_baselines
+import numpy as np
+import pytest
+
 from orbit_chase.evaluation import _clear_time_seconds, evaluate_policy
 from orbit_chase.policies import RandomValidPolicy
 from orbit_chase.rules import ROUND_DURATION_SECONDS, TerminalOutcome
-
-import evaluate_baselines
-import pytest
+from orbit_chase.sarsa import FeatureEncoder, LinearSarsaAgent, SarsaConfig
 
 
 def test_baseline_evaluation_is_reproducible_for_fixed_held_out_seeds():
@@ -59,3 +61,16 @@ def test_heuristic_eval_defaults_to_final_test():
     arguments = evaluate_baselines.parse_eval_args(["--episodes", "100"])
     assert arguments.start_seed == 10_000
     assert arguments.policy == "all"
+
+
+def test_evaluate_policy_does_not_update_sarsa_weights():
+    agent = LinearSarsaAgent(FeatureEncoder(capacity=4096), SarsaConfig(alpha=0.5), seed=73)
+    agent.weights[0, :8] = 1.0
+    before = agent.weights.copy()
+
+    result = evaluate_policy(agent, (0,))
+
+    assert result.episodes == 1
+    assert agent._frozen
+    assert not agent.weights.flags.writeable
+    np.testing.assert_array_equal(agent.weights, before)

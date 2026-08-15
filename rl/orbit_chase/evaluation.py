@@ -59,9 +59,18 @@ def evaluate_policy(
     seeds: Sequence[int],
     verbose: bool = False,
 ) -> EvaluationResult:
-    """Evaluate one fixed policy on explicit held-out episode seeds."""
+    """Evaluate one fixed policy on explicit episode seeds.
+
+    This loop only calls `choose`. It never calls `update`, so a Sarsa
+    checkpoint cannot learn during evaluation. Agents that expose `freeze`
+    and `weights` are locked and checked for mutation.
+    """
     if not seeds:
         raise ValueError("Evaluation requires at least one held-out seed.")
+    freeze = getattr(policy, "freeze", None)
+    if callable(freeze):
+        freeze()
+    weights_before = _copy_weights(policy)
     if verbose:
         print(
             f"Evaluating {policy.name} on {len(seeds)} held-out seeds",
@@ -75,7 +84,23 @@ def evaluate_policy(
         episodes.append(episode)
         if verbose:
             _log_episode(policy.name, index, len(seeds), episode)
+    _assert_weights_unchanged(policy, weights_before)
     return _summarize_episodes(policy.name, episodes)
+
+
+def _copy_weights(policy: PlayerPolicy) -> np.ndarray | None:
+    weights = getattr(policy, "weights", None)
+    if weights is None:
+        return None
+    return np.array(weights, copy=True)
+
+
+def _assert_weights_unchanged(policy: PlayerPolicy, before: np.ndarray | None) -> None:
+    if before is None:
+        return
+    weights = getattr(policy, "weights", None)
+    if weights is None or not np.array_equal(weights, before):
+        raise RuntimeError("Evaluation mutated agent weights.")
 
 
 def held_out_seeds(
@@ -100,7 +125,7 @@ class _Episode:
 
 
 def _play_episode(policy: PlayerPolicy, seed: int) -> _Episode:
-    """Run one seeded episode to a terminal Gym transition."""
+    """Run one seeded episode to a terminal Gym transition without learning."""
     environment = OrbitChasePlayerEnv()
     state, _ = environment.reset(seed=seed)
     rng = np.random.default_rng(seed)

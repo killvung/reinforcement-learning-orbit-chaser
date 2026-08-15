@@ -285,6 +285,31 @@ def test_gym_transition_update_encodes_state():
     assert np.count_nonzero(agent.weights) > 0
 
 
+def test_frozen_agent_rejects_weight_updates():
+    agent = LinearSarsaAgent(
+        FeatureEncoder(capacity=32), SarsaConfig(alpha=0.5, lambda_=0.0), seed=73
+    )
+    agent.freeze()
+    state = _state()
+
+    try:
+        agent.update(
+            Transition(
+                state=state,
+                action=2,
+                reward=1.0,
+                next_state=state,
+                next_action=None,
+                terminal=True,
+            )
+        )
+    except RuntimeError as error:
+        assert "frozen" in str(error).lower()
+    else:
+        raise AssertionError("Frozen agents must reject update()")
+    assert not agent.weights.flags.writeable
+
+
 def test_feature_encoder_rejects_invalid_public_state_shapes():
     encoder = FeatureEncoder()
     state = _state()

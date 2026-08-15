@@ -125,6 +125,8 @@ def main() -> None:
         )
         print(path, file=sys.stderr)
     if arguments.checkpoint is not None:
+        agent = load_linear_sarsa(arguments.checkpoint)
+        agent.freeze()
         sarsa_document = {
             "timestamp": stamp,
             "start_seed": arguments.start_seed,
@@ -133,7 +135,7 @@ def main() -> None:
             "episodes": arguments.episodes,
             "checkpoint": arguments.checkpoint,
             **evaluate_policy(
-                load_linear_sarsa(arguments.checkpoint),
+                agent,
                 seeds,
                 verbose=arguments.verbose,
             ).as_dict(),

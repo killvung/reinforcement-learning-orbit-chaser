@@ -290,6 +290,12 @@ class LinearSarsaAgent(Agent):
         self.weights = np.zeros((ACTION_COUNT, encoder.capacity), dtype=np.float64)
         self.traces: dict[tuple[int, int], float] = {}
         self.q_old = 0.0
+        self._frozen = False
+
+    def freeze(self) -> None:
+        """Lock weights so greedy evaluation cannot run Sarsa updates."""
+        self._frozen = True
+        self.weights.flags.writeable = False
 
     def reset_episode(self) -> None:
         """Clear eligibility traces and the true-online correction term `q_old`."""
@@ -320,6 +326,7 @@ class LinearSarsaAgent(Agent):
 
         Encodes `state` / `next_state`, then applies `update_features`.
         """
+        self._reject_if_frozen()
         features = self.encoder.encode(transition.state)
         next_features = (
             None if transition.terminal else self.encoder.encode(transition.next_state)
@@ -355,6 +362,7 @@ class LinearSarsaAgent(Agent):
         step `α ‖x‖²` equals the configured target. `e · x` uses the trace from
         the previous step, before decay.
         """
+        self._reject_if_frozen()
         _validate_action(action)
         q = self.q_value(features, action)
         delta, q_next = self._td_error(q, reward, next_features, next_action, terminal)
@@ -363,6 +371,10 @@ class LinearSarsaAgent(Agent):
         self._apply_weight_update(features, action, delta, q, step_size)
         self.q_old = q_next
         return delta
+
+    def _reject_if_frozen(self) -> None:
+        if self._frozen:
+            raise RuntimeError("Frozen evaluation agents cannot update weights.")
 
     def _td_error(
         self,
