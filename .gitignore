@@ -1,4 +1,5 @@
 .venv/
+.deploy/
 node_modules/
 dist/
 .test-build/

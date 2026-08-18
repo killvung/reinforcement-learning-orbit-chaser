@@ -118,6 +118,12 @@ documented initial settings (`0.90` and effective step `0.1`). Epsilon decays
 from 0.20 to 0.02 over `--epsilon-horizon-episodes` (default 8000), not the
 requested `--episodes` count.
 
+Plot 1,000-episode exploratory training blocks from a JSONL log with:
+
+```bash
+PYTHONPATH=rl .venv/bin/python rl/plot_learning_curve.py
+```
+
 Run the Python tests with:
 
 ```bash
