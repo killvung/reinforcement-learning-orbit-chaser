@@ -10,7 +10,7 @@
     "test": "tsc -p tsconfig.test.json && node --experimental-specifier-resolution=node --test test/*.test.mjs",
     "test:python": ".venv/bin/python -m pytest",
     "test:parity": "tsc -p tsconfig.test.json && PYTHONPATH=rl .venv/bin/python rl/parity/compare.py",
-    "deploy:hf": "bash deploy/huggingface/deploy.sh"
+    "deploy:hf": "python3 deploy/huggingface/deploy.py"
   },
   "dependencies": {
     "phaser": "3.90.0"
